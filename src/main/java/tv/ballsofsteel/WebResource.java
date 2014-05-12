@@ -42,10 +42,11 @@ public class WebResource {
                     songList.add(entry);
                 }
                 long historyCutoff = DateTime.now().minusWeeks(2).toDate().getTime();
-
                 if(entry.getRequestTime() > historyCutoff ) {
                     songHistory.add(entry);
                 }
+
+                lastRequestId = Math.max(lastRequestId, entry.getRequestId());
             }
 
 

@@ -97,24 +97,8 @@ public class DjBot extends PircBot {
 
     }
 
-    private void updateSongLists() {
+    private void updateQueuesForLeavers() {
         try {
-            //update the list of what songs have been played. anything currently in a queue has not been played
-            ArrayList<Integer> unplayedSongs = new ArrayList<>();
-            for (SongEntry song : songList) {
-                unplayedSongs.add(song.getRequestId());
-            }
-            for (SongEntry song : secondarySongList) {
-                unplayedSongs.add(song.getRequestId());
-            }
-
-            ObjectMapper mapper = new ObjectMapper();
-            String unplayedSongsJson = mapper.writeValueAsString(unplayedSongs);
-            FileUtils.writeStringToFile(new File(DjConfiguration.unplayedSongsFilePath), unplayedSongsJson, "utf-8");
-
-
-
-
             //any song requested by someone who isn't still here should move from the primary list to the secondary list
             User[] users = getUsers(channel);
             HashSet<String> userNamesPresent = new HashSet<>();
@@ -136,8 +120,23 @@ public class DjBot extends PircBot {
         }
     }
 
+    private void updatePlayedSongsFile() throws IOException {
+        //update the list of what songs have been played. anything currently in a queue has not been played
+        ArrayList<Integer> unplayedSongs = new ArrayList<>();
+        for (SongEntry song : songList) {
+            unplayedSongs.add(song.getRequestId());
+        }
+        for (SongEntry song : secondarySongList) {
+            unplayedSongs.add(song.getRequestId());
+        }
+
+        ObjectMapper mapper = new ObjectMapper();
+        String unplayedSongsJson = mapper.writeValueAsString(unplayedSongs);
+        FileUtils.writeStringToFile(new File(DjConfiguration.unplayedSongsFilePath), unplayedSongsJson, "utf-8");
+    }
+
     private void doSongRequest(String sender, String id) {
-        updateSongLists();
+        updateQueuesForLeavers();
 
         String infoUrl = "http://gdata.youtube.com/feeds/api/videos/" + id + "?v=2&alt=jsonc";
         GetMethod get = new GetMethod(infoUrl);
@@ -207,6 +206,7 @@ public class DjBot extends PircBot {
             String songJson = mapper.writeValueAsString(newSong);
             FileUtils.writeStringToFile(new File(DjConfiguration.queueHistoryFilePath), songJson + "\n", "utf-8", true);
 
+            updatePlayedSongsFile();
 
         } catch (IOException e) {
             e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
@@ -299,7 +299,7 @@ public class DjBot extends PircBot {
 
     public SongEntry nextSong() {
 
-        updateSongLists();
+        updateQueuesForLeavers();
 
         boolean playingSecondary = false;
         SongEntry song;
@@ -322,8 +322,13 @@ public class DjBot extends PircBot {
 
 
         sendMessage(channel, "Now playing: " + song.getTitle() + ", requested by: " + song.getUser() + secondaryReport);
+        currentSong = song;
 
-
+        try {
+            updatePlayedSongsFile();
+        } catch (IOException e) {
+            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+        }
         return song;
     }
 
