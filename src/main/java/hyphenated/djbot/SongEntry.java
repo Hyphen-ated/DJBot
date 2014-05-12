@@ -7,17 +7,19 @@ public class SongEntry {
     private int requestId;
     private String user;
     private long requestTime;
+    private int durationSeconds;
 
     public SongEntry() {
 
     }
 
-    public SongEntry(String title, String videoId, int requestId, String user, long requestTime) {
+    public SongEntry(String title, String videoId, int requestId, String user, long requestTime, int durationSeconds) {
         this.title = title;
         this.videoId = videoId;
         this.requestId = requestId;
         this.user = user;
         this.requestTime = requestTime;
+        this.durationSeconds = durationSeconds;
     }
 
     public String getTitle() {
@@ -40,6 +42,10 @@ public class SongEntry {
         return requestTime;
     }
 
+    public int getDurationSeconds() {
+        return durationSeconds;
+    }
+
     public void setTitle(String title) {
         this.title = title;
     }
@@ -58,6 +64,10 @@ public class SongEntry {
 
     public void setRequestTime(long requestTime) {
         this.requestTime = requestTime;
+    }
+
+    public void setDurationSeconds(int durationSeconds) {
+        this.durationSeconds = durationSeconds;
     }
 
 

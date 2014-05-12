@@ -1,5 +1,6 @@
 package hyphenated.djbot;
 
+import com.dropbox.core.*;
 import org.apache.commons.httpclient.HttpClient;
 import org.apache.commons.httpclient.methods.GetMethod;
 import org.apache.commons.io.FileUtils;
@@ -8,18 +9,20 @@ import org.jibble.pircbot.*;
 import org.joda.time.DateTime;
 import org.json.JSONObject;
 
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashSet;
+import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class DjBot extends PircBot {
 
     String label_songrequest = "!songrequest";
-    String label_songs = "!songs";
+    String label_songlist = "!songlist";
     String label_skipsong = "!skipsong";
     String label_volume = "!volume";
     String label_currentsong = "!currentsong";
@@ -53,8 +56,8 @@ public class DjBot extends PircBot {
         message = message.trim();
         if (message.startsWith(label_songrequest)) {
             songRequest( sender, message.substring(label_songrequest.length()).trim());
-        } else if (message.startsWith(label_songs)) {
-            songs( sender, message.substring(label_songs.length()).trim());
+        } else if (message.startsWith(label_songlist)) {
+            songlist(sender, message.substring(label_songlist.length()).trim());
         } else if (message.startsWith(label_skipsong)) {
             skipsong( sender, message.substring(label_skipsong.length()).trim());
         } else if (message.startsWith(label_volume)) {
@@ -66,7 +69,7 @@ public class DjBot extends PircBot {
 
     private void currentsong(String sender) {
         if(currentSong == null) {
-            sendMessage(channel, "No current song");
+            sendMessage(channel, "No current song (or the server just restarted)");
         } else {
             sendMessage(channel, "Current song: \"" + currentSong.getTitle() + "\", url: " + currentSong.generateYoutubeUrl());
         }
@@ -133,6 +136,42 @@ public class DjBot extends PircBot {
         ObjectMapper mapper = new ObjectMapper();
         String unplayedSongsJson = mapper.writeValueAsString(unplayedSongs);
         FileUtils.writeStringToFile(new File(DjConfiguration.unplayedSongsFilePath), unplayedSongsJson, "utf-8");
+
+
+        //send file to dropbox
+        DbxRequestConfig config = new DbxRequestConfig("djbot/1.0", Locale.getDefault().toString());
+        DbxClient client = new DbxClient(config, DjConfiguration.dropboxAccessToken);
+        try {
+            String dboxContents = buildReportString();
+            byte[] contentBytes = dboxContents.getBytes("utf-8");
+            DbxEntry.File uploadedFile = client.uploadFile("/Public/songlist.txt",
+                    DbxWriteMode.force(), contentBytes.length, new ByteArrayInputStream(contentBytes));
+        } catch (DbxException e) {
+            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+        }
+    }
+
+    private String buildReportString() {
+        StringBuilder sb = new StringBuilder();
+        int runningSeconds = 0;
+        if(currentSong != null) {
+            runningSeconds += currentSong.getDurationSeconds();
+            sb.append("Now playing:\n");
+            sb.append(currentSong.generateYoutubeUrl()).append(" \"").append(currentSong.getTitle()).append("\", requested by " + currentSong.getUser() + "\n");
+        }
+        sb.append("============\n");
+        sb.append("Main list:\n============\n");
+        for(SongEntry song : songList) {
+            sb.append(song.generateYoutubeUrl()).append(" \"").append(song.getTitle()).append("\", requested by " + song.getUser() + ", plays in about " + runningSeconds / 60 + " minutes\n" );
+            runningSeconds += song.getDurationSeconds();
+        }
+        sb.append("\n\nSecondary list:\n============\n");
+        for(SongEntry song : secondarySongList) {
+            sb.append(song.generateYoutubeUrl()).append(" \"").append(song.getTitle()).append("\", requested by " + song.getUser() + ", plays in about " + runningSeconds / 60 + " minutes (if nothing is requested)\n" );
+            runningSeconds += song.getDurationSeconds();
+
+        }
+        return sb.toString();
     }
 
     private void doSongRequest(String sender, String id) {
@@ -199,7 +238,7 @@ public class DjBot extends PircBot {
 
             ObjectMapper mapper = new ObjectMapper();
             sendMessage(channel, sender + ": added \"" + title + "\" to queue");
-            SongEntry newSong = new SongEntry(title, id, nextRequestId, sender, new Date().getTime());
+            SongEntry newSong = new SongEntry(title, id, nextRequestId, sender, new Date().getTime(), durationSeconds);
             ++nextRequestId;
             songList.add(newSong);
 
@@ -268,8 +307,8 @@ public class DjBot extends PircBot {
         return false;
     }
 
-    private void songs( String sender, String trim) {
-        //To change body of created methods use File | Settings | File Templates.
+    private void songlist( String sender, String trim) {
+        sendMessage(channel, sender + ": see the song list at " + DjConfiguration.dropboxLink);
     }
     private void skipsong( String sender, String trim) {
         //To change body of created methods use File | Settings | File Templates.

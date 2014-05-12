@@ -59,7 +59,7 @@ public class WebResource {
             bot.setVerbose(true);
 
             // Connect to the IRC server.
-            bot.connect("irc.twitch.tv", 6667, DjConfiguration.password);
+            bot.connect("irc.twitch.tv", 6667, DjConfiguration.twitchOauthToken);
 
             bot.joinChannel("#" + DjConfiguration.channel);
 
