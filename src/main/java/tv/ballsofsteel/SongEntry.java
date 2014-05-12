@@ -8,16 +8,18 @@ public class SongEntry {
     private String videoId;
     private int requestId;
     private String user;
+    private long requestTime;
 
     public SongEntry() {
 
     }
 
-    public SongEntry(String title, String videoId, int requestId, String user) {
+    public SongEntry(String title, String videoId, int requestId, String user, long requestTime) {
         this.title = title;
         this.videoId = videoId;
         this.requestId = requestId;
         this.user = user;
+        this.requestTime = requestTime;
     }
 
     public String getTitle() {
@@ -34,10 +36,10 @@ public class SongEntry {
 
     public String getUser() {
         return user;
-    }       
+    }
 
-    public String generateYoutubeUrl() {
-        return "http://www.youtube.com/watch?" + videoId;
+    public long getRequestTime() {
+        return requestTime;
     }
 
     public void setTitle(String title) {
@@ -56,6 +58,13 @@ public class SongEntry {
         this.user = user;
     }
 
+    public void setRequestTime(long requestTime) {
+        this.requestTime = requestTime;
+    }
+
+
+
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
@@ -73,7 +82,9 @@ public class SongEntry {
         return requestId;
     }
 
-    public static SongEntry build(JSONObject historyElemObj) {
-        return null;  //To change body of created methods use File | Settings | File Templates.
+
+    public String generateYoutubeUrl() {
+        return "http://www.youtube.com/watch?" + videoId;
     }
+
 }

@@ -10,7 +10,8 @@ public class DjConfiguration {
     public static int maxSize;
     public static String botName;
     public static String queueHistoryFilePath;
-    public static String queuePlaceFilePath;
+    public static String unplayedSongsFilePath;
+    public static int recencyDays;
 
     public static void init() throws IOException {
         Properties secrets = new Properties();
@@ -27,8 +28,16 @@ public class DjConfiguration {
             System.out.println("djbot.queueSize isn't a number");
             maxSize = 20;
         }
+        try {
+            recencyDays = Integer.parseInt(props.getProperty("djbot.recencyDays"));
+        } catch (NumberFormatException e) {
+            System.out.println("djbot.recencyDays isn't a number");
+            recencyDays = 3;
+        }
         botName = props.getProperty("djbot.botName");
         queueHistoryFilePath = props.getProperty("djbot.queueHistoryFile");
-        queuePlaceFilePath = props.getProperty("djbot.queuePlaceFile");
+        unplayedSongsFilePath = props.getProperty("djbot.unplayedSongsFile");
+
+
     }
 }

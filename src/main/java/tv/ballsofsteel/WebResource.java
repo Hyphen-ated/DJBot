@@ -2,6 +2,8 @@ package tv.ballsofsteel;
 
 import org.apache.commons.io.IOUtils;
 import org.codehaus.jackson.map.ObjectMapper;
+import org.joda.time.DateTime;
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 import javax.ws.rs.GET;
@@ -10,6 +12,8 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import java.io.FileInputStream;
 import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashSet;
 import java.util.List;
 
 @Path("autodj")
@@ -21,22 +25,36 @@ public class WebResource {
         try {
             DjConfiguration.init();
             List<String> history = IOUtils.readLines(new FileInputStream(DjConfiguration.queueHistoryFilePath), "utf-8");
-
-            String placeStr = IOUtils.toString(new FileInputStream(DjConfiguration.queuePlaceFilePath), "utf-8");
-            int placeInHistory = Integer.parseInt(placeStr);
-
             ArrayList<SongEntry> songList = new ArrayList<SongEntry>();
+            ArrayList<SongEntry> songHistory = new ArrayList<SongEntry>();
+
             ObjectMapper mapper = new ObjectMapper();
+
+            String unplayedSongsStr = IOUtils.toString(new FileInputStream(DjConfiguration.unplayedSongsFilePath), "utf-8");
+            ArrayList<Integer> unplayedSongsList = mapper.readValue(unplayedSongsStr, ArrayList.class);
+            HashSet<Integer> unplayedSongs = new HashSet<>();
+            unplayedSongs.addAll(unplayedSongsList);
+
+            int lastRequestId = 0;
             for(String historyElement : history) {
                 SongEntry entry =mapper.readValue(historyElement, SongEntry.class);
-                if(entry.getRequestId() >= placeInHistory) {
+                if(unplayedSongs.contains(entry.getRequestId())) {
                     songList.add(entry);
+                }
+                long historyCutoff = DateTime.now().minusWeeks(2).toDate().getTime();
+
+                if(entry.getRequestTime() > historyCutoff ) {
+                    songHistory.add(entry);
                 }
             }
 
 
+
+
+
+
             // Now start our bot up.
-            bot = new DjBot(songList, placeInHistory+songList.size());
+            bot = new DjBot(songList, songHistory, lastRequestId + 1);
 
             // Enable debugging output.
             bot.setVerbose(true);
@@ -70,15 +88,19 @@ public class WebResource {
     @Path("next")
     @Produces("application/json")
     public String webNext(@QueryParam("callback") String callback) {
-        if(bot.songList.size() == 0) {
+        if(bot.noMoreSongs()) {
             return callback + "({\"status\":\"failure\"})";
         }
-        SongEntry song = bot.songList.get(0);
+
+        SongEntry song = bot.nextSong();
+
+        if(song == null) {
+            return callback + "({\"status\":\"failure\"})";
+        }
 
         JSONObject resp = new JSONObject();
         resp.put("status", "success");
         resp.put("noNewSong", "false");
-
 
         JSONObject nextSongObj = new JSONObject();
         nextSongObj.put("vid", song.getVideoId());
@@ -89,9 +111,6 @@ public class WebResource {
         nextSongObj.put("title", song.getTitle());
 
         resp.put("next", nextSongObj);
-
-        bot.songList.remove(0);
-        bot.doNewSong(song);
         return callback + "(" + resp.toString() + ")";
     }
 
