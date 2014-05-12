@@ -1,6 +1,4 @@
-package tv.ballsofsteel;
-
-import org.json.JSONObject;
+package hyphenated.djbot;
 
 
 public class SongEntry {

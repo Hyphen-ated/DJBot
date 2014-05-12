@@ -1,4 +1,4 @@
-package tv.ballsofsteel;
+package hyphenated.djbot;
 
 import java.io.IOException;
 import java.util.Properties;
@@ -12,6 +12,7 @@ public class DjConfiguration {
     public static String queueHistoryFilePath;
     public static String unplayedSongsFilePath;
     public static int recencyDays;
+    public static int maxSongsPerUser;
 
     public static void init() throws IOException {
         Properties secrets = new Properties();
@@ -22,22 +23,21 @@ public class DjConfiguration {
 
         password = secrets.getProperty("TWITCH_OAUTH_TOKEN");
         channel = props.getProperty("djbot.channel");
-        try {
-            maxSize = Integer.parseInt(props.getProperty("djbot.queueSize"));
-        } catch (NumberFormatException e) {
-            System.out.println("djbot.queueSize isn't a number");
-            maxSize = 20;
-        }
-        try {
-            recencyDays = Integer.parseInt(props.getProperty("djbot.recencyDays"));
-        } catch (NumberFormatException e) {
-            System.out.println("djbot.recencyDays isn't a number");
-            recencyDays = 3;
-        }
+        maxSize = readInt("djbot.queueSize", 20);
+        recencyDays = readInt("djbot.recencyDays", 3);
         botName = props.getProperty("djbot.botName");
         queueHistoryFilePath = props.getProperty("djbot.queueHistoryFile");
         unplayedSongsFilePath = props.getProperty("djbot.unplayedSongsFile");
+        maxSongsPerUser = readInt("djbot.maxSongsPerUser", 2);
 
+    }
 
+    private static int readInt(String property, int defaultVal) {
+        try {
+            return Integer.parseInt(property);
+        } catch (NumberFormatException e) {
+            System.out.println(property + " isn't a number");
+            return defaultVal;
+        }
     }
 }

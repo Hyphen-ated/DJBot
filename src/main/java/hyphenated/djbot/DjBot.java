@@ -1,4 +1,4 @@
-package tv.ballsofsteel;
+package hyphenated.djbot;
 
 import org.apache.commons.httpclient.HttpClient;
 import org.apache.commons.httpclient.methods.GetMethod;
@@ -187,7 +187,7 @@ public class DjBot extends PircBot {
                 return;
             }
 
-            if(senderCount(sender) >= 2) {
+            if(senderCount(sender) >= DjConfiguration.maxSongsPerUser) {
                 denySong(sender, "you have 2 songs in the queue already");
                 return;
             }

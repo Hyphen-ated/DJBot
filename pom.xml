@@ -3,7 +3,7 @@
 
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>tv.ballsofsteel</groupId>
+    <groupId>hyphenated.djbot</groupId>
     <artifactId>djbot</artifactId>
     <packaging>jar</packaging>
     <version>1.0-SNAPSHOT</version>
@@ -109,7 +109,7 @@
                 <!--<configuration>-->
                     <!--<archive>-->
                         <!--<manifest>-->
-                            <!--<mainClass>tv.ballsofsteel.DjBotMain</mainClass>-->
+                            <!--<mainClass>hyphenated.djbotain</mainClass>-->
                         <!--</manifest>-->
                     <!--</archive>-->
                     <!--<descriptorRefs>-->
