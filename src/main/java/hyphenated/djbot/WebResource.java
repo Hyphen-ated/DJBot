@@ -48,10 +48,6 @@ public class WebResource {
             }
 
 
-
-
-
-
             // Now start our bot up.
             bot = new DjBot(songList, songHistory, lastRequestId + 1);
 
@@ -103,7 +99,7 @@ public class WebResource {
 
         JSONObject nextSongObj = new JSONObject();
         nextSongObj.put("vid", song.getVideoId());
-        nextSongObj.put("url", song.generateYoutubeUrl());
+        nextSongObj.put("url", song.buildYoutubeUrl());
         nextSongObj.put("id", song.getRequestId());
         nextSongObj.put("user", song.getUser());
         nextSongObj.put("type", "youtube");

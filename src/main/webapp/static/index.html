@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<script type='text/javascript' src='https://ajax.googleapis.com/ajax/libs/swfobject/2.2/swfobject.js'></script>
+<script type='text/javascript' src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.0/jquery.min.js"></script>
+
+<script src='djbot.js'></script>
+
+
+<div id="everything">
+    <div id="musicHolder" style="height: 0;padding-bottom: 50%;background-color: black;">
+        <div id="musicPlayer" />
+    </div>
+    <div id="buttons">
+        <button onclick="playpause()">Play/pause</button>
+        <button onclick="nextSong(true)">Skip</button>
+        <button onclick="changevol(10)">+vol</button>
+        <button onclick="changevol(-10)">-vol</button>
+    </div>
+    <div id="title"></div>
+    <div id="requester"></div>
+
+</div>
+</html>
+
+

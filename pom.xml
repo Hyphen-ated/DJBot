@@ -166,6 +166,14 @@
                         <webInfIncludeJarPattern>.*/.*jersey-[^/]\.jar$</webInfIncludeJarPattern>
                     </webApp>
                     <war>${project.build.directory}/${project.build.finalName}.war</war>
+
+                    <contextHandlers>
+                        <contextHandler implementation="org.eclipse.jetty.webapp.WebAppContext">
+                            <contextPath>/ui</contextPath>
+                            <resourceBase>src/main/webapp/static</resourceBase>
+                        </contextHandler>
+                    </contextHandlers>
+
                 </configuration>
             </plugin>
         </plugins>

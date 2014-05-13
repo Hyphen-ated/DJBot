@@ -4,7 +4,7 @@
         version="3.0">
 
     <servlet>
-        <servlet-name>Jersey Web Application</servlet-name>
+        <servlet-name>djbot</servlet-name>
         <servlet-class>org.glassfish.jersey.servlet.ServletContainer</servlet-class>
         <init-param>
             <param-name>jersey.config.server.provider.packages</param-name>
@@ -13,7 +13,7 @@
         <load-on-startup>1</load-on-startup>
     </servlet>
     <servlet-mapping>
-        <servlet-name>Jersey Web Application</servlet-name>
+        <servlet-name>djbot</servlet-name>
         <url-pattern>/*</url-pattern>
     </servlet-mapping>
 

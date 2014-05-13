@@ -91,8 +91,15 @@ public class SongEntry {
     }
 
 
-    public String generateYoutubeUrl() {
+    public String buildYoutubeUrl() {
         return "http://www.youtube.com/watch?" + videoId;
     }
 
+    public String buildDurationStr() {
+        String secs = String.valueOf(durationSeconds % 60);
+        if(secs.length() == 1) {
+            secs = "0" + secs;
+        }
+        return String.valueOf(durationSeconds / 60) + ":" + secs;
+    }
 }

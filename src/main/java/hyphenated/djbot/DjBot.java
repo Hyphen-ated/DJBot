@@ -71,7 +71,7 @@ public class DjBot extends PircBot {
         if(currentSong == null) {
             sendMessage(channel, "No current song (or the server just restarted)");
         } else {
-            sendMessage(channel, "Current song: \"" + currentSong.getTitle() + "\", url: " + currentSong.generateYoutubeUrl());
+            sendMessage(channel, "Current song: \"" + currentSong.getTitle() + "\", url: " + currentSong.buildYoutubeUrl());
         }
     }
 
@@ -157,17 +157,17 @@ public class DjBot extends PircBot {
         if(currentSong != null) {
             runningSeconds += currentSong.getDurationSeconds();
             sb.append("Now playing:\n");
-            sb.append(currentSong.generateYoutubeUrl()).append(" \"").append(currentSong.getTitle()).append("\", requested by " + currentSong.getUser() + "\n");
+            sb.append(currentSong.buildYoutubeUrl()).append(" \"").append(currentSong.getTitle()).append("\", requested by " + currentSong.getUser() + "\n");
         }
         sb.append("============\n");
         sb.append("Main list:\n============\n");
         for(SongEntry song : songList) {
-            sb.append(song.generateYoutubeUrl()).append(" \"").append(song.getTitle()).append("\", requested by " + song.getUser() + ", plays in about " + runningSeconds / 60 + " minutes\n" );
+            sb.append(song.buildYoutubeUrl()).append(" \"").append(song.getTitle()).append("\", requested by " + song.getUser() + ", plays in about " + runningSeconds / 60 + " minutes\n\n" );
             runningSeconds += song.getDurationSeconds();
         }
         sb.append("\n\nSecondary list:\n============\n");
         for(SongEntry song : secondarySongList) {
-            sb.append(song.generateYoutubeUrl()).append(" \"").append(song.getTitle()).append("\", requested by " + song.getUser() + ", plays in about " + runningSeconds / 60 + " minutes (if nothing is requested)\n" );
+            sb.append(song.buildYoutubeUrl()).append(" \"").append(song.getTitle()).append("\", requested by " + song.getUser() + ", plays in about " + runningSeconds / 60 + " minutes (if nothing is requested)\n\n" );
             runningSeconds += song.getDurationSeconds();
 
         }
@@ -360,7 +360,7 @@ public class DjBot extends PircBot {
         }
 
 
-        sendMessage(channel, "Now playing: " + song.getTitle() + ", requested by: " + song.getUser() + secondaryReport);
+        sendMessage(channel, "Up next: " + song.getTitle() + ", requested by: " + song.getUser() + ", duration " + song.buildDurationStr() + secondaryReport);
         currentSong = song;
 
         try {
