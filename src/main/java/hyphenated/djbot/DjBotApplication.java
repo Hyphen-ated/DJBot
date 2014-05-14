@@ -1,5 +1,6 @@
 package hyphenated.djbot;
 
+import hyphenated.djbot.health.ChannelCheck;
 import io.dropwizard.Application;
 import io.dropwizard.setup.Bootstrap;
 import io.dropwizard.setup.Environment;
@@ -32,5 +33,9 @@ public class DjBotApplication extends Application<DjConfiguration> {
                     Environment environment) {
         DjResource resource = new DjResource(configuration);
         environment.jersey().register(resource);
+
+        final ChannelCheck channelCheck = new ChannelCheck(resource);
+
+        environment.healthChecks().register("currentSong", channelCheck);
     }
 }

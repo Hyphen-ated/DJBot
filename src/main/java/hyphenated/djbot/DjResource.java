@@ -25,6 +25,10 @@ public class DjResource {
         bot = new DjBot(conf);
     }
 
+    public DjBot getBot() {
+        return bot;
+    }
+
     @GET
     @Path("check")
     @Produces("application/json")
