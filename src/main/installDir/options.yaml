@@ -27,5 +27,11 @@ maxSongLength: 8.0
 # maximum length in minutes that a song can be if the queue is empty (hey, maybe it's long but at least we get some music)
 maxSongLengthWhenQueueEmpty: 12.0
 
+# controls whether someone's song gets de-prioritized if they leave the chat
+bumpLeaverSongsToSecondaryQueue: true
+
+#how many lines can the integrated console window show
+maxConsoleLines: 99999
+
 
 

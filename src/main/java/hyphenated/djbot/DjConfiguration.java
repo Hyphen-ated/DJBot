@@ -25,6 +25,8 @@ public class DjConfiguration extends Configuration {
     private String dropboxAccessToken;
     private float maxSongLength;
     private float maxSongLengthWhenQueueEmpty;
+    private int maxConsoleLines;
+    private boolean bumpLeaverSongsToSecondaryQueue;
 
 
     @JsonProperty
@@ -125,5 +127,26 @@ public class DjConfiguration extends Configuration {
     @JsonProperty
     public void setMaxSongLengthWhenQueueEmpty(float maxSongLengthWhenQueueEmpty) {
         this.maxSongLengthWhenQueueEmpty = maxSongLengthWhenQueueEmpty;
+    }
+
+
+    @JsonProperty
+    public int getMaxConsoleLines() {
+        return maxConsoleLines;
+    }
+
+    @JsonProperty
+    public void setMaxConsoleLines(int maxConsoleLines) {
+        this.maxConsoleLines = maxConsoleLines;
+    }
+
+    @JsonProperty
+    public boolean isBumpLeaverSongsToSecondaryQueue() {
+        return bumpLeaverSongsToSecondaryQueue;
+    }
+
+    @JsonProperty
+    public void setBumpLeaverSongsToSecondaryQueue(boolean bumpLeaverSongsToSecondaryQueue) {
+        this.bumpLeaverSongsToSecondaryQueue = bumpLeaverSongsToSecondaryQueue;
     }
 }

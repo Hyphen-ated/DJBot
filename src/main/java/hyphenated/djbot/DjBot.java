@@ -50,8 +50,16 @@ public class DjBot extends PircBot {
     private String dropboxLink;
 
     public DjBot( DjConfiguration newConf) {
+
+
         this.conf = newConf;
         this.channel = conf.getChannel();
+
+        javax.swing.SwingUtilities.invokeLater(new Runnable() {
+            public void run() {
+                GuiWindow.createAndShowGUI(conf.getMaxConsoleLines());
+            }
+        });
 
         List<String> history = null;
         try {
@@ -192,6 +200,9 @@ public class DjBot extends PircBot {
     }
 
     private void updateQueuesForLeavers() {
+        if(!conf.isBumpLeaverSongsToSecondaryQueue()) {
+            return;
+        }
         try {
             //any song requested by someone who isn't still here should move from the primary list to the secondary list
             User[] users = getUsers(channel);
@@ -210,7 +221,7 @@ public class DjBot extends PircBot {
             }
             songList = newSongList;
         } catch (Exception e) {
-            e.printStackTrace();
+            throw new RuntimeException(e);
         }
     }
 
@@ -280,7 +291,8 @@ public class DjBot extends PircBot {
                 return;
             }
         } catch (IOException e) {
-            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+            System.out.println("Couldn't get info from youtube api. Stacktrace:");
+            e.printStackTrace();
             return;
         }
 
