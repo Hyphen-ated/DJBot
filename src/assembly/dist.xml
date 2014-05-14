@@ -21,4 +21,11 @@
             </includes>
         </fileSet>
     </fileSets>
+    <files>
+        <file>
+            <source>${project.basedir}/readme.md</source>
+            <outputDirectory>/</outputDirectory>
+            <destName>readme.txt</destName>
+        </file>
+    </files>
 </assembly>

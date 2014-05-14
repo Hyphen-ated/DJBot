@@ -16,7 +16,7 @@ $(document).keydown(function(event){
 function loadSong(youtubeId) {
     var params = { allowScriptAccess: "always"};
     //switch to this one for no player controls in the embed
-    //swfobject.embedSWF("https://www.youtube.com/apiplayer?video_id="+youtubeId+"&version=3&feature=player_embedded&autoplay=1&controls=1&enablejsapi=1&modestbranding=0&rel=0&showinfo=1&autohide=0&color=white&playerapiid=musicPlayer&iv_load_policy=3", "musicPlayer", "100%", "100%", "8", null, null, params);
+    //swfobject.embedSWF("https://www.youtube.com/apiplayer?video_id="+youtubeId+"&version=3&feature=player_embedded&autoplay=1&controls=1&enablejsapi=1&modestbranding=0&rel=0&showinfo=1&autohide=0&color=white&playerapiid=musicPlayer&iv_load_policy=3", "musicPlayer", "600", "400", "8", null, null, params);
     swfobject.embedSWF("https://www.youtube.com/v/"+youtubeId+"?autoplay=1&controls=1&enablejsapi=0&iv_load_policy=3&playerapiid=musicPlayer", "musicPlayer", "600", "400", "8", null, null, params, null);
     playingVideo = true;
 }
