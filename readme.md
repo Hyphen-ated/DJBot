@@ -9,6 +9,8 @@ Next, go to http://twitchapps.com/tmi/ to generate an access token for your bot'
 (Don't use the access token for your streaming account, it needs to be for the bot account!)
 
 Now you have to make a dropbox account for the bot to host the songlist. Once you do that, go to https://www.dropbox.com/developers/apps and create an app for your copy of the djbot.
+Dropbox will ask you a few questions: It should be of type "dropbox api app", it should be able to edit files and datastores, and it only needs to edit files that it creates itself.
+
 Go to the page for the app you just created and click "generate access token", then put that in the dropboxAccessToken field in options.yaml
 
 Don't let other people see these access tokens or they will be able to impersonate your bot on twitch or on dropbox!
