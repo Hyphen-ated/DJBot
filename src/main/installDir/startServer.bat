@@ -1,2 +1,1 @@
-java -jar djbot.jar server options.yaml
-pause
+start java -jar djbot.jar server options.yaml
