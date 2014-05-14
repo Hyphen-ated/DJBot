@@ -22,10 +22,10 @@ maxSongsPerUser: 2
 messageDelayMs: 3000
 
 # maximum length in minutes that a song can normally be
-maxSongLength=8.0
+maxSongLength: 8.0
 
 # maximum length in minutes that a song can be if the queue is empty (hey, maybe it's long but at least we get some music)
-maxSongLengthWhenQueueEmpty=12.0
+maxSongLengthWhenQueueEmpty: 12.0
 
 
 

@@ -217,6 +217,9 @@ public class DjBot extends PircBot {
     private void updatePlayedSongsFile() throws IOException {
         //update the list of what songs have been played. anything currently in a queue has not been played
         ArrayList<Integer> unplayedSongs = new ArrayList<>();
+        if(currentSong != null) {
+            unplayedSongs.add(currentSong.getRequestId());
+        }
         for (SongEntry song : songList) {
             unplayedSongs.add(song.getRequestId());
         }
@@ -452,11 +455,6 @@ public class DjBot extends PircBot {
 
     public SongEntry nextSong() {
         System.out.println("nextSong");
-        try {
-            updatePlayedSongsFile();
-        } catch (IOException e) {
-            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
-        }
 
         updateQueuesForLeavers();
 
@@ -483,6 +481,11 @@ public class DjBot extends PircBot {
         sendMessage(channel, "Up next: " + song.getTitle() + ", requested by: " + song.getUser() + ", duration " + song.buildDurationStr() + secondaryReport);
         currentSong = song;
 
+        try {
+            updatePlayedSongsFile();
+        } catch (IOException e) {
+            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+        }
 
         return song;
     }
