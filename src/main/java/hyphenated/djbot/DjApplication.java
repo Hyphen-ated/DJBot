@@ -6,17 +6,10 @@ import io.dropwizard.assets.AssetsBundle;
 import io.dropwizard.setup.Bootstrap;
 import io.dropwizard.setup.Environment;
 
-/**
- * Created with IntelliJ IDEA.
- * User: sean
- * Date: 5/13/14
- * Time: 4:34 PM
- * To change this template use File | Settings | File Templates.
- */
-public class DjBotApplication extends Application<DjConfiguration> {
+public class DjApplication extends Application<DjConfiguration> {
 
     public static void main(String[] args) throws Exception {
-        new DjBotApplication().run(args);
+        new DjApplication().run(args);
     }
 
     @Override

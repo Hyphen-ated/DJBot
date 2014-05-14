@@ -118,7 +118,7 @@
                             <transformers>
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                                    <mainClass>hyphenated.djbot.DjBotApplication</mainClass>
+                                    <mainClass>hyphenated.djbot.DjApplication</mainClass>
                                 </transformer>
                             </transformers>
                         </configuration>
