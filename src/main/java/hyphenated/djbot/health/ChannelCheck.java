@@ -13,10 +13,10 @@ public class ChannelCheck extends HealthCheck {
     @Override
     protected Result check() throws Exception {
         String channel = bot.getChannel();
-        if (channel.startsWith("#")) {
+        if (!channel.startsWith("#")) {
             return HealthCheck.Result.healthy();
         } else {
-            return Result.unhealthy("Channel name \"" + bot.getChannel() + " doesn't start with #");
+            return Result.unhealthy("Channel name \"" + bot.getChannel() + " shouldn't start with #");
         }
     }
 }

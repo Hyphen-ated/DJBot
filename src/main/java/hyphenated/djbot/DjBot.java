@@ -32,6 +32,7 @@ public class DjBot extends PircBot {
     final String unplayedSongsFilePath = "unplayedSongs.json";
 
     final String dboxFilePath = "/Public/songlist.txt";
+    private String streamer;
 
 
     private String channel;
@@ -53,7 +54,8 @@ public class DjBot extends PircBot {
 
 
         this.conf = newConf;
-        this.channel = conf.getChannel();
+        this.channel = "#" + conf.getChannel();
+        this.streamer = conf.getChannel();
 
         javax.swing.SwingUtilities.invokeLater(new Runnable() {
             public void run() {
@@ -120,7 +122,7 @@ public class DjBot extends PircBot {
             throw new RuntimeException("Couldn't connect to twitch irc", e);
         }
 
-        this.joinChannel(conf.getChannel());
+        this.joinChannel(channel);
 
         this.setMessageDelay(conf.getMessageDelayMs());
 
@@ -306,7 +308,7 @@ public class DjBot extends PircBot {
             JSONObject data = obj.getJSONObject("data");
             String title = data.getString("title");
             int durationSeconds = data.getInt("duration");
-            if(durationSeconds / 60.0 > songLengthAllowedMinutes()) {
+            if(!sender.equals(streamer) && durationSeconds / 60.0 > songLengthAllowedMinutes()) {
                 denySong(sender, "the song is over " + songLengthAllowedMinutes() + " minutes");
                 return;
             }
@@ -326,17 +328,17 @@ public class DjBot extends PircBot {
                 return;
             }
 
-            if(idInRecentHistory(id)) {
+            if(!sender.equals(streamer) && idInRecentHistory(id)) {
                 denySong(sender, "the song \"" + title + "\" has been played in the last " + conf.getRecencyDays() + " days");
                 return;
             }
 
-            if(conf.getMaxSongsPerUser() > 0 && senderCount(sender) >= conf.getMaxSongsPerUser()) {
+            if(!sender.equals(streamer) && conf.getMaxSongsPerUser() > 0 && senderCount(sender) >= conf.getMaxSongsPerUser()) {
                 denySong(sender, "you have " + conf.getMaxSongsPerUser() + " songs in the queue already");
                 return;
             }
 
-            if(moveToPrimaryIfSongInSecondary(id)) {
+            if(!sender.equals(streamer) && moveToPrimaryIfSongInSecondary(id)) {
                 sendMessage(channel, sender + ": bumping \"" + title + "\" to main queue");
                 return;
             }

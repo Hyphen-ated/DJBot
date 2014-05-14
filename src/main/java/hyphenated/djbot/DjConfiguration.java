@@ -36,7 +36,11 @@ public class DjConfiguration extends Configuration {
 
     @JsonProperty
     public void setChannel(String channel) {
-        this.channel = channel;
+        if(channel.startsWith("#")) {
+            this.channel = channel.substring(1);
+        } else {
+            this.channel = channel;
+        }
     }
 
     @JsonProperty
