@@ -10,11 +10,7 @@
             <directory>${project.basedir}/src/main/installDir/</directory>
             <outputDirectory>/</outputDirectory>
             <includes>
-                <include>readme.txt</include>
-                <include>options.yaml</include>
-                <include>start.bat</include>
-                <include>queue.json</include>
-                <include>unplayedSongs.json</include>
+                <include>*</include>
             </includes>
         </fileSet>
         <fileSet>

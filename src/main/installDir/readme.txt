@@ -11,8 +11,8 @@ Go to the page for the app you just created and click "generate access token", t
 Now set "channel" to your twitch streaming account where you want the djbot to join the chat
 
 To run DJBot, you need java installed.
-Run start.bat to run it.
-(if you have java installed but it's not on your PATH, you can edit start.bat and replace "java" with an absolute path to your java exe)
+Run startServer.bat to run it.
+(if you have java installed but it's not on your PATH, you can edit startServer.bat and replace "java" with an absolute path to your java exe)
 
 Once you have it running and there are no errors, go to http://localhost:8080/djbot/ui/ in your web browser to get the music player.
 (you might need to click "next" to get it started)

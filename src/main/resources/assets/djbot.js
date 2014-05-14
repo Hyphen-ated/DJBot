@@ -1,5 +1,5 @@
-urlPrefix = "http://localhost:8069";
-playingVideo = true;
+urlPrefix = "http://localhost:8080";
+playingVideo = false;
 
 $(document).keydown(function(event){
     if(event.keyCode === 38 && event.altKey) {
@@ -42,22 +42,48 @@ function changevol(delta) {
 
 function nextSong(skip) {
     if(skip) {
-    var maybeSkipped = "skip=true&";
+        var maybeSkipped = "skip=true";
+    } else {
+        var maybeSkipped = "";
     }
 
     $.ajax({
         dataType: 'json',
         url: urlPrefix + '/djbot/next?'+maybeSkipped+'&callback=?',
         success: function(data) {
-            if(data.status === 'success') {
+            var itWorked = false;
+            if( data && data.status === 'success') {
                 if(data.next !== 'none') {
                     var newSong = data.next;
                     if(data.noNewSong !== true) {
                         loadSong(newSong.vid);
                         document.getElementById('title').innerHTML=newSong.title;
                         document.getElementById('requester').innerHTML=newSong.user;
+                        itWorked = true;
                     }
                 }
+            }
+            if(!itWorked) {
+                var player = document.getElementById('musicPlayer');
+                if(player.getPlayerState() !== 0) {
+                    //make the video end even if we got nothing from the server
+                    player.seekTo(99999);
+                }
+            }
+        }
+    })
+}
+
+function tryFirstSong() {
+    $.ajax({
+        dataType: 'json',
+        url: urlPrefix + '/djbot/current?callback=?',
+        success: function(data) {
+            if(data) {
+                loadSong(data.videoId);
+                document.getElementById('title').innerHTML=data.title;
+                document.getElementById('requester').innerHTML=data.user;
+                justStarted = false;
             }
         }
     })
@@ -65,11 +91,16 @@ function nextSong(skip) {
 
 function update() {
     var player = document.getElementById('musicPlayer');
-    //if it ended
+
+    if(justStarted) {
+        tryFirstSong();
+    }
 
     if( playingVideo && player && player.getPlayerState() === 0) {
-    nextSong(false);
+        nextSong(false);
     }
 
 }
+
+justStarted = true;
 setInterval(update, 1000);

@@ -1,20 +1,12 @@
 package hyphenated.djbot;
 
-import org.apache.commons.io.IOUtils;
-import org.codehaus.jackson.map.ObjectMapper;
-import org.eclipse.jetty.server.Server;
-import org.joda.time.DateTime;
+import org.apache.commons.lang.StringUtils;
 import org.json.JSONObject;
 
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
-import javax.xml.ws.Endpoint;
-import java.io.FileInputStream;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
 
 @Path("djbot")
 public class DjResource {
@@ -38,9 +30,22 @@ public class DjResource {
     @GET
     @Path("updatevolume")
     @Produces("application/json")
-    public String webCheck(@QueryParam("callback") String callback, @QueryParam("volume") String volume) {
+    public String webVolume(@QueryParam("callback") String callback, @QueryParam("volume") String volume) {
         bot.setVolume(volume);
         return callback + "({\"channel\":\"" + bot.getChannel() + "\",\"success\":true})";
+    }
+
+    @GET
+    @Path("current")
+    @Produces("application/json")
+    public String webCurrent(@QueryParam("callback") String callback) {
+        SongEntry curSong = bot.startCurrentSong();
+        String json = curSong != null ? curSong.toJsonString() : "";
+        if(StringUtils.isEmpty(callback)) {
+            return json;
+        } else {
+            return callback + "(" + json + ")";
+        }
     }
 
     @GET

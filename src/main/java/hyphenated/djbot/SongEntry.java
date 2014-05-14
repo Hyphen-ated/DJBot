@@ -1,6 +1,10 @@
 package hyphenated.djbot;
 
 
+import org.codehaus.jackson.map.ObjectMapper;
+
+import java.io.IOException;
+
 public class SongEntry {
     private String title;
     private String videoId;
@@ -88,6 +92,15 @@ public class SongEntry {
     @Override
     public int hashCode() {
         return requestId;
+    }
+
+    public String toJsonString() {
+        ObjectMapper mapper = new ObjectMapper();
+        try {
+            return mapper.writeValueAsString(this);
+        } catch (IOException e) {
+            throw new RuntimeException("Can't convert a song entry to json", e);
+        }
     }
 
 

@@ -410,11 +410,11 @@ public class DjBot extends PircBot {
         }
     }
     private void skipsong( String sender, String trim) {
-        //To change body of created methods use File | Settings | File Templates.
+        //todo: let mods do this
     }
 
     private void volume( String sender, String trim) {
-
+        //todo: let mods do this
     }
 
     public void setVolume(String trim) {
@@ -429,19 +429,40 @@ public class DjBot extends PircBot {
     }
 
 
-
-
     public boolean noMoreSongs() {
         return songList.size() == 0 && secondarySongList.size() == 0;
     }
 
+    public SongEntry startCurrentSong() {
+        System.out.println("startCurrentSong");
+        if(currentSong != null) {
+            return currentSong;
+        }
+        updateQueuesForLeavers();
+        if(songList.size() == 0) {
+            if(secondarySongList.size() == 0) {
+                return null;
+            }
+            currentSong = secondarySongList.remove(0);
+        } else {
+            currentSong = songList.remove(0);
+        }
+        return currentSong;
+    }
+
     public SongEntry nextSong() {
+        System.out.println("nextSong");
+        try {
+            updatePlayedSongsFile();
+        } catch (IOException e) {
+            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+        }
 
         updateQueuesForLeavers();
 
         boolean playingSecondary = false;
         SongEntry song;
-        //if the main queue is empty, pull from secondary
+                //if the main queue is empty, pull from secondary
         if(songList.size() == 0) {
             if(secondarySongList.size() == 0) {
                 return null;
@@ -462,11 +483,7 @@ public class DjBot extends PircBot {
         sendMessage(channel, "Up next: " + song.getTitle() + ", requested by: " + song.getUser() + ", duration " + song.buildDurationStr() + secondaryReport);
         currentSong = song;
 
-        try {
-            updatePlayedSongsFile();
-        } catch (IOException e) {
-            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
-        }
+
         return song;
     }
 
