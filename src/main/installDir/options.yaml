@@ -21,4 +21,11 @@ maxSongsPerUser: 2
 # how long to wait between sending chat messages (send them too often and twitch will eat them. don't set this too low)
 messageDelayMs: 3000
 
+# maximum length in minutes that a song can normally be
+maxSongLength=8.0
+
+# maximum length in minutes that a song can be if the queue is empty (hey, maybe it's long but at least we get some music)
+maxSongLengthWhenQueueEmpty=12.0
+
+
 

@@ -356,9 +356,9 @@ public class DjBot extends PircBot {
 
     private float songLengthAllowedMinutes() {
         if(songList.size() == 0) {
-            return 12;
+            return conf.getMaxSongLengthWhenQueueEmpty();
         } else {
-            return 8;
+            return conf.getMaxSongLength();
         }
     }
 

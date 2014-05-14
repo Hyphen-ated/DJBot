@@ -23,6 +23,8 @@ public class DjConfiguration extends Configuration {
     private String twitchAccessToken;
     @NotEmpty
     private String dropboxAccessToken;
+    private float maxSongLength;
+    private float maxSongLengthWhenQueueEmpty;
 
 
     @JsonProperty
@@ -103,5 +105,25 @@ public class DjConfiguration extends Configuration {
     @JsonProperty
     public void setDropboxAccessToken(String dropboxAccessToken) {
         this.dropboxAccessToken = dropboxAccessToken;
+    }
+
+    @JsonProperty
+    public float getMaxSongLength() {
+        return maxSongLength;
+    }
+
+    @JsonProperty
+    public void setMaxSongLength(float maxSongLength) {
+        this.maxSongLength = maxSongLength;
+    }
+
+    @JsonProperty
+    public float getMaxSongLengthWhenQueueEmpty() {
+        return maxSongLengthWhenQueueEmpty;
+    }
+
+    @JsonProperty
+    public void setMaxSongLengthWhenQueueEmpty(float maxSongLengthWhenQueueEmpty) {
+        this.maxSongLengthWhenQueueEmpty = maxSongLengthWhenQueueEmpty;
     }
 }
