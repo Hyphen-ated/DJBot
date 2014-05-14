@@ -1,10 +1,12 @@
 package hyphenated.djbot;
 
 import com.dropbox.core.*;
+import com.dropbox.core.util.StringUtil;
 import org.apache.commons.httpclient.HttpClient;
 import org.apache.commons.httpclient.methods.GetMethod;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang.StringUtils;
 import org.codehaus.jackson.map.ObjectMapper;
 import org.jibble.pircbot.*;
 import org.joda.time.DateTime;
@@ -29,6 +31,8 @@ public class DjBot extends PircBot {
     final String queueHistoryFilePath = "queue.json";
     final String unplayedSongsFilePath = "unplayedSongs.json";
 
+    final String dboxFilePath = "/Public/songlist.txt";
+
 
     private String channel;
 
@@ -42,6 +46,8 @@ public class DjBot extends PircBot {
     private int volume = 30;
     private int nextRequestId;
     private DjConfiguration conf;
+
+    private String dropboxLink;
 
     public DjBot( DjConfiguration newConf) {
         this.conf = newConf;
@@ -109,9 +115,24 @@ public class DjBot extends PircBot {
         this.joinChannel(conf.getChannel());
 
         this.setMessageDelay(conf.getMessageDelayMs());
+
+        this.dropboxLink = getDropboxLink(conf);
     }
 
+    private String getDropboxLink(DjConfiguration conf) {
+        DbxClient client = getDbxClient();
+        try {
+            return client.createShareableUrl(dboxFilePath);
+        } catch (DbxException e) {
+            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+            return null;
+        }
+    }
 
+    private DbxClient getDbxClient() {
+        DbxRequestConfig config = new DbxRequestConfig("djbot/1.0", Locale.getDefault().toString());
+        return new DbxClient(config, conf.getDropboxAccessToken());
+    }
 
 
     public void onMessage(String channel, String sender,
@@ -209,12 +230,11 @@ public class DjBot extends PircBot {
 
 
         //send file to dropbox
-        DbxRequestConfig config = new DbxRequestConfig("djbot/1.0", Locale.getDefault().toString());
-        DbxClient client = new DbxClient(config, conf.getDropboxAccessToken());
+        DbxClient client = getDbxClient();
         try {
             String dboxContents = buildReportString();
             byte[] contentBytes = dboxContents.getBytes("utf-8");
-            DbxEntry.File uploadedFile = client.uploadFile("/Public/songlist.txt",
+            DbxEntry.File uploadedFile = client.uploadFile(dboxFilePath,
                     DbxWriteMode.force(), contentBytes.length, new ByteArrayInputStream(contentBytes));
         } catch (DbxException e) {
             e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
@@ -383,7 +403,11 @@ public class DjBot extends PircBot {
     }
 
     private void songlist( String sender, String trim) {
-        sendMessage(channel, sender + ": see the song list at " + conf.getDropboxLink());
+        if(StringUtils.isEmpty(dropboxLink)) {
+            sendMessage(channel, "Sorry " + sender + ", songlist isn't set up");
+        } else {
+            sendMessage(channel, sender + ": see the song list at " + dropboxLink);
+        }
     }
     private void skipsong( String sender, String trim) {
         //To change body of created methods use File | Settings | File Templates.

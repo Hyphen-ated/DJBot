@@ -1,12 +1,11 @@
-# Mandatory settings ########
+# Mandatory settings #########################################################
 botName: yourBotTwitchAccountName
 twitchAccessToken: "PUT YOUR BOT'S ACCESS TOKEN HERE INSIDE QUOTES"
 
-dropboxAccessToken: "PUT YOUR DROPBOX APP'S ACCESS TOKEN HERE INSIDE QUOTES"
-dropboxLink: "https://www.dropbox.com/s/y8yjszsxty3tasl/songlist.txt"
+dropboxAccessToken: "PUT YOUR DROPBOX APP ACCESS TOKEN HERE INSIDE QUOTES"
 
 channel: "#yourStreamingTwitchAccountName"
-#############################
+##############################################################################
 
 #Optional settings:
 

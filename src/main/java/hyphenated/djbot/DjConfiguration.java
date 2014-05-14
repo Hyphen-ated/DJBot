@@ -23,8 +23,7 @@ public class DjConfiguration extends Configuration {
     private String twitchAccessToken;
     @NotEmpty
     private String dropboxAccessToken;
-    @NotEmpty
-    private String dropboxLink;
+
 
     @JsonProperty
     public String getChannel() {
@@ -105,43 +104,4 @@ public class DjConfiguration extends Configuration {
     public void setDropboxAccessToken(String dropboxAccessToken) {
         this.dropboxAccessToken = dropboxAccessToken;
     }
-
-    @JsonProperty
-    public String getDropboxLink() {
-        return dropboxLink;
-    }
-
-    @JsonProperty
-    public void setDropboxLink(String dropboxLink) {
-        this.dropboxLink = dropboxLink;
-    }
-
-    //    public static void init() throws IOException {
-//        Properties secrets = new Properties();
-//        secrets.load(DjConfiguration.class.getResourceAsStream("/secrets.properties"));
-//
-//        Properties props = new Properties();
-//        props.load(DjConfiguration.class.getResourceAsStream("/options.properties"));
-//
-//        twitchOauthToken = secrets.getProperty("TWITCH_OAUTH_TOKEN");
-//        dropboxAccessToken = secrets.getProperty("DROPBOX_ACCESS_TOKEN");
-//        channel = props.getProperty("djbot.channel");
-//        queueSize = readInt("djbot.queueSize", 20);
-//        recencyDays = readInt("djbot.recencyDays", 3);
-//        botName = props.getProperty("djbot.botName");
-//        queueHistoryFilePath = props.getProperty("djbot.queueHistoryFile");
-//        unplayedSongsFilePath = props.getProperty("djbot.unplayedSongsFile");
-//        maxSongsPerUser = readInt("djbot.maxSongsPerUser", 2);
-//        dropboxLink = props.getProperty("djbot.dropboxLink");
-//
-//    }
-//
-//    private static int readInt(String property, int defaultVal) {
-//        try {
-//            return Integer.parseInt(property);
-//        } catch (NumberFormatException e) {
-//            System.out.println(property + " isn't a number");
-//            return defaultVal;
-//        }
-//    }
 }
