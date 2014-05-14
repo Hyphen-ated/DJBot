@@ -25,6 +25,7 @@ public class DjBot extends PircBot {
     final String label_skipsong = "!skipsong";
     final String label_volume = "!volume";
     final String label_currentsong = "!currentsong";
+    final String label_songs = "!songs";
     final String queueHistoryFilePath = "queue.json";
     final String unplayedSongsFilePath = "unplayedSongs.json";
 
@@ -34,9 +35,9 @@ public class DjBot extends PircBot {
     private SongEntry currentSong;
 
     private ArrayList<SongEntry> songList = new ArrayList<>();
-    private ArrayList<SongEntry> secondarySongList;
+    private ArrayList<SongEntry> secondarySongList = new ArrayList<>();
 
-    private ArrayList<SongEntry> songHistory;
+    private ArrayList<SongEntry> songHistory = new ArrayList<>();
 
     private int volume = 30;
     private int nextRequestId;
@@ -111,6 +112,8 @@ public class DjBot extends PircBot {
     }
 
 
+
+
     public void onMessage(String channel, String sender,
                           String login, String hostname, String message) {
         message = message.trim();
@@ -124,8 +127,15 @@ public class DjBot extends PircBot {
             volume( sender, message.substring(label_volume.length()).trim());
         } else if (message.startsWith(label_currentsong)) {
             currentsong(sender);
+        } else if (message.startsWith(label_songs)) {
+            songs(sender);
         }
     }
+
+    private void songs(String sender) {
+        sendMessage(channel, sender + ": use \"!songrequest youtubeURL\" to request a song");
+    }
+
 
     private void currentsong(String sender) {
         if(currentSong == null) {

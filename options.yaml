@@ -1,5 +1,25 @@
-channel: #hyphen_ated
+# Mandatory settings ########
+botName: yourBotTwitchAccountName
+twitchAccessToken: "PUT YOUR BOT'S ACCESS TOKEN HERE INSIDE QUOTES"
+
+dropboxAccessToken: "PUT YOUR DROPBOX APP'S ACCESS TOKEN HERE INSIDE QUOTES"
+dropboxLink: "https://www.dropbox.com/s/y8yjszsxty3tasl/songlist.txt"
+
+channel: "#yourStreamingTwitchAccountName"
+#############################
+
+#Optional settings:
+
+# how many songs can be in the main queue (0 for unlimited)
 queueSize: 20
+
+# if a youtube video has been requested within this many days in the past, don't let it be requested again (0 to turn this feature off)
 recencyDays: 3
+
+# how many songs each viewer can have in the queue at once (0 for unlimited)
 maxSongsPerUser: 2
+
+# how long to wait between sending chat messages (send them too often and twitch will eat them. don't set this too low)
 messageDelayMs: 3000
+
+

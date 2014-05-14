@@ -79,6 +79,13 @@
                     <target>1.7</target>
                 </configuration>
             </plugin>
+                <plugin>
+                    <artifactId>maven-assembly-plugin</artifactId>
+                    <version>2.4</version>
+                    <configuration>
+                        <descriptor>src/assembly/dist.xml</descriptor>
+                    </configuration>
+                </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
