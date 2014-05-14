@@ -47,7 +47,7 @@ function nextSong(skip) {
 
     $.ajax({
         dataType: 'json',
-        url: urlPrefix + '/autodj/next?'+maybeSkipped+'&callback=?',
+        url: urlPrefix + '/djbot/next?'+maybeSkipped+'&callback=?',
         success: function(data) {
             if(data.status === 'success') {
                 if(data.next !== 'none') {

@@ -2,6 +2,7 @@ package hyphenated.djbot;
 
 import hyphenated.djbot.health.ChannelCheck;
 import io.dropwizard.Application;
+import io.dropwizard.assets.AssetsBundle;
 import io.dropwizard.setup.Bootstrap;
 import io.dropwizard.setup.Environment;
 
@@ -25,7 +26,8 @@ public class DjBotApplication extends Application<DjConfiguration> {
 
     @Override
     public void initialize(Bootstrap<DjConfiguration> bootstrap) {
-        // nothing to do yet
+
+        bootstrap.addBundle(new AssetsBundle("/assets", "/djbot/ui", "index.html"));
     }
 
     @Override

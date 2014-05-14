@@ -276,7 +276,7 @@ public class DjBot extends PircBot {
                 return;
             }
 
-            if(songList.size() >= conf.getQueueSize()) {
+            if(conf.getQueueSize() > 0 && songList.size() >= conf.getQueueSize()) {
                 denySong(sender, "the queue is full at " + conf.getQueueSize());
                 return;
             }
@@ -296,7 +296,7 @@ public class DjBot extends PircBot {
                 return;
             }
 
-            if(senderCount(sender) >= conf.getMaxSongsPerUser()) {
+            if(conf.getMaxSongsPerUser() > 0 && senderCount(sender) >= conf.getMaxSongsPerUser()) {
                 denySong(sender, "you have " + conf.getMaxSongsPerUser() + " songs in the queue already");
                 return;
             }
@@ -367,6 +367,11 @@ public class DjBot extends PircBot {
     }
 
     private boolean idInRecentHistory(String id) {
+        int days = conf.getRecencyDays();
+        if(days == 0) {
+            //feature turned off
+            return false;
+        }
         long recencyCutoff = DateTime.now().minusDays(conf.getRecencyDays()).toDate().getTime();
 
         for(SongEntry entry : songHistory) {

@@ -16,7 +16,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 
-@Path("autodj")
+@Path("djbot")
 public class DjResource {
 
     private DjBot bot;
