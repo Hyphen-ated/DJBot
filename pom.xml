@@ -89,6 +89,8 @@
                     <version>2.4</version>
                     <configuration>
                         <descriptor>src/assembly/dist.xml</descriptor>
+                        <finalName>djbot-${project.version}</finalName>
+                        <appendAssemblyId>false</appendAssemblyId>
                     </configuration>
                 </plugin>
             <plugin>
