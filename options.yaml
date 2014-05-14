@@ -1,0 +1,5 @@
+channel: #hyphen_ated
+queueSize: 20
+recencyDays: 3
+maxSongsPerUser: 2
+messageDelayMs: 3000
