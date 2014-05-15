@@ -434,7 +434,7 @@ public class DjBot extends PircBot {
         updateQueuesForLeavers();
 
         if(blacklistedYoutubeIds.contains(youtubeId)) {
-            denySong(sender, "that song is blacklisted");
+            denySong(sender, "that song is blacklisted by the streamer");
             return;
         }
 

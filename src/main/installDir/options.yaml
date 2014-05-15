@@ -40,7 +40,7 @@ userCountryCode: US
 # when a song is about to play, send an "up next" message in the chat
 showUpNextMessages: true
 
-# comma-separated list of youtube ids that should not be played
+# comma-separated list of youtube ids (11 characters each, each in quotes) that should not be played
 blacklistedYoutubeIds: []
 
 
