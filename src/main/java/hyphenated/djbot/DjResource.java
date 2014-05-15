@@ -25,7 +25,7 @@ public class DjResource {
     @Path("check")
     @Produces("application/json")
     public String webCheck(@QueryParam("callback") String callback) {
-        return callback + "({\"channel\":\"" + bot.getChannel() + "\",\"volume\":\"" + bot.getVolume() + "\",\"skipid\":\"0\"})";
+        return callback + "({\"channel\":\"" + bot.getChannel() + "\",\"volume\":\"" + bot.getVolume() + "\",\"skipid\":\"" + bot.getSongToSkip() + "\"})";
     }
     @GET
     @Path("updatevolume")

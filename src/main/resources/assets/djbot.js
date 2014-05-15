@@ -15,12 +15,13 @@ $(document).keydown(function(event){
     }
 });
 
-function loadSong(youtubeId) {
+function loadSong(youtubeId, requestId) {
     var params = { allowScriptAccess: "always"};
     //switch to this one for no player controls in the embed
     //swfobject.embedSWF("https://www.youtube.com/apiplayer?video_id="+youtubeId+"&version=3&feature=player_embedded&autoplay=1&controls=1&enablejsapi=1&modestbranding=0&rel=0&showinfo=1&autohide=0&color=white&playerapiid=musicPlayer&iv_load_policy=3", "musicPlayer", "600", "400", "8", null, null, params);
     swfobject.embedSWF("https://www.youtube.com/v/"+youtubeId+"?autoplay=1&controls=1&enablejsapi=0&iv_load_policy=3&playerapiid=musicPlayer", "musicPlayer", "600", "400", "8", null, null, params, null);
     playingVideo = true;
+    currentlyPlayingRequestId = requestId;
 }
 
 
@@ -40,6 +41,13 @@ function changevol(delta) {
     if(newvol > 100) newvol = 100;
     if(newvol < 10) newvol = 10;
     player.setVolume(newvol);
+    $.ajax({
+            dataType: 'json',
+            url: urlPrefix + '/djbot/updatevolume?volume=' + newvol + '&callback=?',
+            success: function(data) {
+                //nothing to do here now, since we have no error reporting
+            }
+        })
 }
 
 function nextSong(skip) {
@@ -59,10 +67,9 @@ function nextSong(skip) {
                 if(data.next !== 'none') {
                     var newSong = data.next;
                     if(data.noNewSong !== true) {
-                        loadSong(newSong.vid);
+                        loadSong(newSong.vid, newSong.requestId);
                         document.getElementById('title').innerHTML=newSong.title;
                         document.getElementById('requester').innerHTML=newSong.user;
-                        currentlyPlayingRequestId = newSong.requestId;
                         itWorked = true;
                     }
                 }
@@ -84,7 +91,7 @@ function tryFirstSong() {
         url: urlPrefix + '/djbot/current?callback=?',
         success: function(data) {
             if(data) {
-                loadSong(data.videoId);
+                loadSong(data.videoId, data.requestId);
                 document.getElementById('title').innerHTML=data.title;
                 document.getElementById('requester').innerHTML=data.user;
                 justStarted = false;
@@ -101,9 +108,26 @@ function update() {
         tryFirstSong();
     }
 
+    //are we sitting at the end of a video and it's time to load the next?
     if( playingVideo && !waitingOnSoftNext && player && player.getPlayerState() === 0) {
         waitingOnSoftNext = true;
         nextSong(false);
+    } else {
+        //see if we need to change the volume or skip the current song
+        $.ajax({
+            dataType: 'json',
+            url: urlPrefix + '/djbot/check?callback=?',
+            success: function(data) {
+                if(data) {
+                    var player = document.getElementById('musicPlayer');
+                    player.setVolume(data.volume);
+                    if(data.skipid == currentlyPlayingRequestId) {
+                        player.pauseVideo();
+                        tryFirstSong();
+                    }
+                }
+            }
+        })
     }
 
 }

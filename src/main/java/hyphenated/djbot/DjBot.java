@@ -25,6 +25,7 @@ public class DjBot extends PircBot {
     final String label_songrequest = "!songrequest";
     final String label_songlist = "!songlist";
     final String label_removesong = "!removesong";
+    final String label_skipsong = "!skipsong";
     final String label_volume = "!volume";
     final String label_currentsong = "!currentsong";
     final String label_songs = "!songs";
@@ -33,24 +34,58 @@ public class DjBot extends PircBot {
 
     final String dboxFilePath = "/Public/songlist.txt";
     private String streamer;
-
-
     private String channel;
 
-    private SongEntry currentSong;
+    private volatile SongEntry currentSong;
 
-    private ArrayList<SongEntry> songList = new ArrayList<>();
-    private ArrayList<SongEntry> secondarySongList = new ArrayList<>();
+    private volatile ArrayList<SongEntry> songList = new ArrayList<>();
+    private volatile ArrayList<SongEntry> secondarySongList = new ArrayList<>();
 
-    private ArrayList<SongEntry> songHistory = new ArrayList<>();
+    private volatile ArrayList<SongEntry> songHistory = new ArrayList<>();
 
-    private int volume = 30;
-    private int nextRequestId;
+    private volatile int volume = 30;
+    private volatile int nextRequestId;
     private DjConfiguration conf;
 
     private String dropboxLink;
 
     private HashSet<String> blacklistedYoutubeIds = new HashSet<>();
+    private volatile HashSet<String> opUsernames = new HashSet<>();
+    private volatile int songToSkip = 0;
+
+    @Override
+    protected void onUserMode(String targetNick, String sourceNick, String sourceLogin, String sourceHostname, String mode) {
+        //this is a hack because pircbot doesn't properly parse twitch's MODE messages
+        String mangledMessage = mode;
+        //it looks like so: "#hyphen_ated +o 910dan" where hyphen_ated is the channel and 910dan is the op
+        String[] pieces = mangledMessage.split(" ");
+        String modeChannel = pieces[0];
+        String modeChange = pieces[1];
+        String changedUser = pieces[2];
+
+        if(!modeChannel.equals(channel)) {
+            //we don't care about modes in other channels than our streamer's
+            return;
+        }
+
+        if(modeChange.charAt(1) != 'o') {
+            //we only care about ops, not other modes
+            return;
+        }
+
+        if(modeChange.charAt(0) == '+') {
+            opUsernames.add(changedUser);
+        } else if (modeChange.charAt(0) == '-') {
+            opUsernames.remove(changedUser);
+        } else {
+            System.out.println("Unexpected character in mode change: \"" + modeChange.charAt(0) + "\". expected + or -");
+        }
+
+    }
+
+    protected void onPart(String channel, String sender, String login, String hostname) {
+        opUsernames.remove(sender);
+    }
 
     public DjBot( DjConfiguration newConf) {
 
@@ -159,6 +194,9 @@ public class DjBot extends PircBot {
             irc_songlist(sender, message.substring(label_songlist.length()).trim());
         } else if (message.startsWith(label_removesong)) {
             irc_removesong(sender, message.substring(label_removesong.length()).trim());
+        } else if (message.startsWith(label_skipsong)) {
+            //skipsong is the same as removesong
+            irc_removesong(sender, message.substring(label_skipsong.length()).trim());
         } else if (message.startsWith(label_volume)) {
             irc_volume(sender, message.substring(label_volume.length()).trim());
         } else if (message.startsWith(label_currentsong)) {
@@ -168,22 +206,8 @@ public class DjBot extends PircBot {
         }
     }
 
-    //TODO: fix this, it doesn't work!!
     private boolean isMod(String sender) {
-        User userList[] = this.getUsers(channel);
-
-        User senderUser = null;
-        for( User user : userList ){
-            if(user.getNick().equals(sender)) {
-                senderUser = user;
-            }
-        }
-        if(senderUser == null) {
-            System.out.println("Couldn't find user " + sender + " in channel, this is not expected");
-            return false;
-        }
-
-        return senderUser.isOp();
+        return this.opUsernames.contains(sender);
     }
 
     private void irc_songlist( String sender, String trim) {
@@ -195,7 +219,7 @@ public class DjBot extends PircBot {
     }
     private void irc_removesong(String sender, String trim) {
         if(!isMod(sender)) {
-            sendMessage(channel, "removesong is for mods only");
+            sendMessage(channel, "removing or skipping songs is for mods only");
             return;
         }
         try {
@@ -205,9 +229,15 @@ public class DjBot extends PircBot {
             }
             removeSongFromList(songList, skipId, sender);
             removeSongFromList(secondarySongList, skipId, sender);
+            songToSkip = skipId;
+            try {
+                updatePlayedSongsFile();
+            } catch (IOException e) {
+                e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+            }
 
         } catch (NumberFormatException e) {
-            sendMessage(channel, sender + ": you must specify the song id to remove (a number)");
+            sendMessage(channel, sender + ": you must specify the song id to remove or skip (a number)");
         }
     }
 
@@ -235,9 +265,10 @@ public class DjBot extends PircBot {
             } else if (newVolume > 100) {
                 newVolume = 100;
             }
+            sendMessage(channel, sender + ": volume changed from " + volume + " to " + newVolume);
             volume = newVolume;
         } catch (NumberFormatException e) {
-            sendMessage("channel", sender + ": volume must be between 1 and 100");
+            sendMessage(channel, sender + ": volume must be between 1 and 100");
         }
     }
 
@@ -373,23 +404,26 @@ public class DjBot extends PircBot {
         }
     }
 
+
     private String buildReportString() {
         StringBuilder sb = new StringBuilder();
         int runningSeconds = 0;
+
+        //todo: clean up this duplication
         if(currentSong != null) {
             runningSeconds += currentSong.getDurationSeconds();
             sb.append("Now playing:\n");
-            sb.append(currentSong.buildYoutubeUrl()).append(" \"").append(currentSong.getTitle()).append("\", requested by " + currentSong.getUser() + "\n");
+            sb.append(currentSong.buildYoutubeUrl()).append(" \"").append(currentSong.getTitle()).append("\", requested by " + currentSong.getUser() + ", id: " + currentSong.getRequestId() + "\n" );
         }
         sb.append("============\n");
         sb.append("Main list:\n============\n");
         for(SongEntry song : songList) {
-            sb.append(song.buildYoutubeUrl()).append(" \"").append(song.getTitle()).append("\", requested by " + song.getUser() + ", plays in about " + runningSeconds / 60 + " minutes\n\n" );
+            sb.append(song.buildYoutubeUrl()).append(" \"").append(song.getTitle()).append("\", requested by " + song.getUser() + ", id: " + song.getRequestId() + ", plays in about " + runningSeconds / 60 + " minutes\n\n" );
             runningSeconds += song.getDurationSeconds();
         }
         sb.append("\n\nSecondary list:\n============\n");
         for(SongEntry song : secondarySongList) {
-            sb.append(song.buildYoutubeUrl()).append(" \"").append(song.getTitle()).append("\", requested by " + song.getUser() + ", plays in about " + runningSeconds / 60 + " minutes (if nothing is requested)\n\n" );
+            sb.append(song.buildYoutubeUrl()).append(" \"").append(song.getTitle()).append("\", requested by " + song.getUser() + ", id: " + song.getRequestId() + ", plays in about " + runningSeconds / 60 + " minutes (if nothing is requested)\n\n" );
             runningSeconds += song.getDurationSeconds();
 
         }
@@ -610,6 +644,7 @@ public class DjBot extends PircBot {
                 //if the main queue is empty, pull from secondary
         if(songList.size() == 0) {
             if(secondarySongList.size() == 0) {
+                currentSong = null;
                 return null;
             }
             song = secondarySongList.remove(0);
@@ -649,5 +684,9 @@ public class DjBot extends PircBot {
 
     public int getVolume() {
         return volume;
+    }
+
+    public int getSongToSkip() {
+        return songToSkip;
     }
 }
