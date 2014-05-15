@@ -1,5 +1,7 @@
 urlPrefix = "http://localhost:8080";
 playingVideo = false;
+currentlyPlayingRequestId = 0;
+waitingOnSoftNext = false;
 
 $(document).keydown(function(event){
     if(event.keyCode === 38 && event.altKey) {
@@ -42,7 +44,7 @@ function changevol(delta) {
 
 function nextSong(skip) {
     if(skip) {
-        var maybeSkipped = "skip=true";
+        var maybeSkipped = "skip=true&idToSkip=" + currentlyPlayingRequestId;
     } else {
         var maybeSkipped = "";
     }
@@ -51,6 +53,7 @@ function nextSong(skip) {
         dataType: 'json',
         url: urlPrefix + '/djbot/next?'+maybeSkipped+'&callback=?',
         success: function(data) {
+            waitingOnSoftNext = false;
             var itWorked = false;
             if( data && data.status === 'success') {
                 if(data.next !== 'none') {
@@ -59,6 +62,7 @@ function nextSong(skip) {
                         loadSong(newSong.vid);
                         document.getElementById('title').innerHTML=newSong.title;
                         document.getElementById('requester').innerHTML=newSong.user;
+                        currentlyPlayingRequestId = newSong.requestId;
                         itWorked = true;
                     }
                 }
@@ -89,6 +93,7 @@ function tryFirstSong() {
     })
 }
 
+
 function update() {
     var player = document.getElementById('musicPlayer');
 
@@ -96,7 +101,8 @@ function update() {
         tryFirstSong();
     }
 
-    if( playingVideo && player && player.getPlayerState() === 0) {
+    if( playingVideo && !waitingOnSoftNext && player && player.getPlayerState() === 0) {
+        waitingOnSoftNext = true;
         nextSong(false);
     }
 

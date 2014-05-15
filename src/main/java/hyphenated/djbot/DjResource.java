@@ -51,13 +51,20 @@ public class DjResource {
     @GET
     @Path("next")
     @Produces("application/json")
-    public String webNext(@QueryParam("callback") String callback) {
+    public String webNext(@QueryParam("callback") String callback, @QueryParam("idToSkip") String idToSkip) {
         if(bot.noMoreSongs()) {
             return callback + "({\"status\":\"failure\"})";
         }
 
+        if(!StringUtils.isEmpty(idToSkip)) {
+            if(! (idToSkip.equals(bot.getCurrentSong().getRequestId()))) {
+                //we're trying to skip something that already ended or got skipped
+                return callback + "({\"status\":\"failure\"})";
+            }
+        }
         SongEntry song = bot.nextSong();
 
+        //todo: clean this up, we're not really giving accurate statuses
         if(song == null) {
             return callback + "({\"status\":\"failure\"})";
         }

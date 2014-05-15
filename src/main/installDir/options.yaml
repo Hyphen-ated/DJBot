@@ -30,8 +30,18 @@ maxSongLengthWhenQueueEmpty: 12.0
 # controls whether someone's song gets de-prioritized if they leave the chat
 bumpLeaverSongsToSecondaryQueue: true
 
-#how many lines can the integrated console window show
+# how many lines can the integrated console window show
 maxConsoleLines: 99999
+
+# two-letter country code for the country you're in ( find it on http://en.wikipedia.org/wiki/ISO_3166-1 )
+# this is so the bot can detect when a video will be blocked and give an error for the !songrequest, rather than the song being silently skipped
+userCountryCode: US
+
+# when a song is about to play, send an "up next" message in the chat
+showUpNextMessages: true
+
+# comma-separated list of youtube ids that should not be played
+blacklistedYoutubeIds: []
 
 
 

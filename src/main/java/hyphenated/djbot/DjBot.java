@@ -1,7 +1,6 @@
 package hyphenated.djbot;
 
 import com.dropbox.core.*;
-import com.dropbox.core.util.StringUtil;
 import org.apache.commons.httpclient.HttpClient;
 import org.apache.commons.httpclient.methods.GetMethod;
 import org.apache.commons.io.FileUtils;
@@ -20,11 +19,12 @@ import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+//todo: split this into a DjBot and an DjIrcCommandHandler?
 public class DjBot extends PircBot {
 
     final String label_songrequest = "!songrequest";
     final String label_songlist = "!songlist";
-    final String label_skipsong = "!skipsong";
+    final String label_removesong = "!removesong";
     final String label_volume = "!volume";
     final String label_currentsong = "!currentsong";
     final String label_songs = "!songs";
@@ -49,6 +49,8 @@ public class DjBot extends PircBot {
     private DjConfiguration conf;
 
     private String dropboxLink;
+
+    private HashSet<String> blacklistedYoutubeIds = new HashSet<>();
 
     public DjBot( DjConfiguration newConf) {
 
@@ -127,6 +129,9 @@ public class DjBot extends PircBot {
         this.setMessageDelay(conf.getMessageDelayMs());
 
         this.dropboxLink = getDropboxLink(conf);
+        if(conf.getBlacklistedYoutubeIds() != null) {
+            this.blacklistedYoutubeIds.addAll(conf.getBlacklistedYoutubeIds());
+        }
     }
 
     private String getDropboxLink(DjConfiguration conf) {
@@ -149,26 +154,99 @@ public class DjBot extends PircBot {
                           String login, String hostname, String message) {
         message = message.trim();
         if (message.startsWith(label_songrequest)) {
-            songRequest( sender, message.substring(label_songrequest.length()).trim());
+            irc_songRequest(sender, message.substring(label_songrequest.length()).trim());
         } else if (message.startsWith(label_songlist)) {
-            songlist(sender, message.substring(label_songlist.length()).trim());
-        } else if (message.startsWith(label_skipsong)) {
-            skipsong( sender, message.substring(label_skipsong.length()).trim());
+            irc_songlist(sender, message.substring(label_songlist.length()).trim());
+        } else if (message.startsWith(label_removesong)) {
+            irc_removesong(sender, message.substring(label_removesong.length()).trim());
         } else if (message.startsWith(label_volume)) {
-            volume( sender, message.substring(label_volume.length()).trim());
+            irc_volume(sender, message.substring(label_volume.length()).trim());
         } else if (message.startsWith(label_currentsong)) {
-            currentsong(sender);
+            irc_currentsong(sender);
         } else if (message.startsWith(label_songs)) {
-            songs(sender);
+            irc_songs(sender);
         }
     }
 
-    private void songs(String sender) {
+    //TODO: fix this, it doesn't work!!
+    private boolean isMod(String sender) {
+        User userList[] = this.getUsers(channel);
+
+        User senderUser = null;
+        for( User user : userList ){
+            if(user.getNick().equals(sender)) {
+                senderUser = user;
+            }
+        }
+        if(senderUser == null) {
+            System.out.println("Couldn't find user " + sender + " in channel, this is not expected");
+            return false;
+        }
+
+        return senderUser.isOp();
+    }
+
+    private void irc_songlist( String sender, String trim) {
+        if(StringUtils.isEmpty(dropboxLink)) {
+            sendMessage(channel, "Sorry " + sender + ", songlist isn't set up");
+        } else {
+            sendMessage(channel, sender + ": see the song list at " + dropboxLink);
+        }
+    }
+    private void irc_removesong(String sender, String trim) {
+        if(!isMod(sender)) {
+            sendMessage(channel, "removesong is for mods only");
+            return;
+        }
+        try {
+            int skipId = Integer.parseInt(trim);
+            if(currentSong.getRequestId() == skipId) {
+                nextSong();
+            }
+            removeSongFromList(songList, skipId, sender);
+            removeSongFromList(secondarySongList, skipId, sender);
+
+        } catch (NumberFormatException e) {
+            sendMessage(channel, sender + ": you must specify the song id to remove (a number)");
+        }
+    }
+
+    private void removeSongFromList(List<SongEntry> listOfSongs, int skipId, String sender) {
+        Iterator<SongEntry> entryIterator = listOfSongs.iterator();
+        while (entryIterator.hasNext()) {
+            SongEntry curEntry = entryIterator.next();
+            if (curEntry.getRequestId() == skipId) {
+                sendMessage(channel, sender + ": removed song \"" + curEntry.getTitle() + "\"");
+                entryIterator.remove();
+            }
+        }
+    }
+
+
+    private void irc_volume(String sender, String trim) {
+        if(!isMod(sender)) {
+            sendMessage(channel, "Volume is for mods only");
+            return;
+        }
+        try {
+            int newVolume = Integer.parseInt(trim);
+            if(newVolume < 1) {
+                newVolume = 1;
+            } else if (newVolume > 100) {
+                newVolume = 100;
+            }
+            volume = newVolume;
+        } catch (NumberFormatException e) {
+            sendMessage("channel", sender + ": volume must be between 1 and 100");
+        }
+    }
+
+    private void irc_songs(String sender) {
         sendMessage(channel, sender + ": use \"!songrequest youtubeURL\" to request a song");
     }
 
 
-    private void currentsong(String sender) {
+    private void irc_currentsong(String sender) {
         if(currentSong == null) {
             sendMessage(channel, "No current song (or the server just restarted)");
         } else {
@@ -176,29 +254,67 @@ public class DjBot extends PircBot {
         }
     }
 
+
+
+
     Pattern idPattern = Pattern.compile("[a-zA-Z0-9_-]{11}");
 
-    void songRequest(String sender, String requestStr) {
+    //given a string that a user songrequested, try to figure out what it is a link to and do the work to handle it
+    void irc_songRequest(String sender, String requestStr) {
         Matcher m = idPattern.matcher(requestStr);
+        //we support !songrequest <youtubeid>
         if (m.matches()) {
-            doSongRequest(sender, requestStr);
+            doYoutubeRequest(sender, requestStr);
             return;
         }
-        int vIdx = requestStr.indexOf("v=");
-        if (vIdx > 0) {
-            int idStart = vIdx + 2;
-            int idEnd = idStart + 11;
-            if (requestStr.length() >= idEnd) {
-                String potentialId = requestStr.substring(idStart, idEnd);
-                m = idPattern.matcher(potentialId);
-                if(m.matches()) {
-                    doSongRequest(sender, potentialId );
-                    return;
-                }
-            }
+
+        //we support youtu.be/<youtubeid>
+        String youtuBeId = findYoutubeIdAfterMarker(requestStr, "youtu.be/");
+        if(youtuBeId != null) {
+            doYoutubeRequest(sender, youtuBeId);
+            return;
         }
+
+        //we support standard youtube links like https://www.youtube.com/watch?v=<youtubeid>
+        String vParamId = findYoutubeIdAfterMarker(requestStr, "?v=");
+        if(requestStr.contains("youtube.com") && vParamId != null) {
+            doYoutubeRequest(sender, vParamId);
+            return;
+        }
+
+        //we support youtube links like https://www.youtube.com/v/<youtubeid>
+        String vPathId = findYoutubeIdAfterMarker(requestStr, "/v/");
+        if(requestStr.contains("youtube.com") && vPathId != null) {
+            doYoutubeRequest(sender, vPathId);
+            return;
+        }
+
         System.out.println("Bad request: " + requestStr);
 
+    }
+
+    //given a request string, look for a youtube id that directly follows the given marker at some point in the string
+    private String findYoutubeIdAfterMarker(String requestStr, String marker) {
+        int youtuBeIdx = requestStr.indexOf(marker);
+        if(youtuBeIdx > 0) {
+            return findYoutubeIdPrefix(requestStr.substring(youtuBeIdx + marker.length()));
+        } else {
+            return null;
+        }
+    }
+
+    //given a string that might begin with a youtube id, return the id if it does begin with one
+    private String findYoutubeIdPrefix(String strWithPossibleIdPrefix) {
+        int idStart = 0;
+        int idEnd = 11;
+        if (strWithPossibleIdPrefix.length() >= idEnd) {
+            String potentialId = strWithPossibleIdPrefix.substring(idStart, idEnd);
+            Matcher m = idPattern.matcher(potentialId);
+            if(m.matches()) {
+                return potentialId;
+            }
+        }
+        return null;
     }
 
     private void updateQueuesForLeavers() {
@@ -228,7 +344,7 @@ public class DjBot extends PircBot {
     }
 
     private void updatePlayedSongsFile() throws IOException {
-        //update the list of what songs have been played. anything currently in a queue has not been played
+        //update the list of what songs have been played. anything currently playing or in a queue has not "been played"
         ArrayList<Integer> unplayedSongs = new ArrayList<>();
         if(currentSong != null) {
             unplayedSongs.add(currentSong.getRequestId());
@@ -280,21 +396,29 @@ public class DjBot extends PircBot {
         return sb.toString();
     }
 
-    private void doSongRequest(String sender, String id) {
+    private void doYoutubeRequest(String sender, String youtubeId) {
         updateQueuesForLeavers();
 
-        String infoUrl = "http://gdata.youtube.com/feeds/api/videos/" + id + "?v=2&alt=jsonc";
+        if(blacklistedYoutubeIds.contains(youtubeId)) {
+            denySong(sender, "that song is blacklisted");
+            return;
+        }
+
+        String infoUrl = "http://gdata.youtube.com/feeds/api/videos/" + youtubeId + "?v=2&alt=jsonc&restriction=" + conf.getUserCountryCode();
         GetMethod get = new GetMethod(infoUrl);
         HttpClient client = new HttpClient();
         try {
             int errcode = client.executeMethod(get);
             if(errcode != 200) {
-                System.out.println("Got code " + errcode + " from " + infoUrl);
+                System.out.println("Song request error: got code " + errcode + " from " + infoUrl);
+                denySong(sender, "I couldn't find info about that video on youtube");
+
                 return;
             }
         } catch (IOException e) {
             System.out.println("Couldn't get info from youtube api. Stacktrace:");
             e.printStackTrace();
+            denySong(sender, "I couldn't find info about that video on youtube");
             return;
         }
 
@@ -302,12 +426,37 @@ public class DjBot extends PircBot {
             String resp = get.getResponseBodyAsString();
             if(resp == null) {
                 System.out.println("Couldn't get detail at " + infoUrl);
+                denySong(sender, "I couldn't find info about that video on youtube");
+
                 return;
             }
             JSONObject obj = new JSONObject(resp);
             JSONObject data = obj.getJSONObject("data");
             String title = data.getString("title");
             int durationSeconds = data.getInt("duration");
+            JSONObject accessControl = data.getJSONObject("accessControl");
+            String embedAllowed = accessControl.getString("embed");
+            JSONObject status = data.optJSONObject("status");
+            String restrictionReason = null;
+            if(status != null) {
+                restrictionReason = status.getString("reason");
+            }
+
+            if("requesterRegion".equals(restrictionReason)) {
+                denySong(sender, "that video can't be played in the streamer's country");
+                return;
+            }
+
+            if("private".equals(restrictionReason)) {
+                denySong(sender, "that video is private");
+                return;
+            }
+
+            if(!("allowed".equals(embedAllowed))) {
+                denySong(sender, "that video is not allowed to be embedded");
+                return;
+            }
+
             if(!sender.equals(streamer) && durationSeconds / 60.0 > songLengthAllowedMinutes()) {
                 denySong(sender, "the song is over " + songLengthAllowedMinutes() + " minutes");
                 return;
@@ -318,17 +467,17 @@ public class DjBot extends PircBot {
                 return;
             }
 
-            if(currentSong != null && id.equals(currentSong.getVideoId())) {
+            if(currentSong != null && youtubeId.equals(currentSong.getVideoId())) {
                 denySong(sender, "the song \"" + title + "\" is currently playing");
                 return;
             }
 
-            if(idCountInMainList(id) > 0) {
+            if(idCountInMainList(youtubeId) > 0) {
                 denySong(sender, "the song \"" + title + "\" is already in the queue");
                 return;
             }
 
-            if(!sender.equals(streamer) && idInRecentHistory(id)) {
+            if(!sender.equals(streamer) && idInRecentHistory(youtubeId)) {
                 denySong(sender, "the song \"" + title + "\" has been played in the last " + conf.getRecencyDays() + " days");
                 return;
             }
@@ -338,14 +487,14 @@ public class DjBot extends PircBot {
                 return;
             }
 
-            if(!sender.equals(streamer) && moveToPrimaryIfSongInSecondary(id)) {
-                sendMessage(channel, sender + ": bumping \"" + title + "\" to main queue");
+            if(!sender.equals(streamer) && moveToPrimaryIfSongInSecondary(youtubeId)) {
+                sendMessage(channel, sender + ": bumping \"" + title + "\" to main queue" );
                 return;
             }
 
             ObjectMapper mapper = new ObjectMapper();
-            sendMessage(channel, sender + ": added \"" + title + "\" to queue");
-            SongEntry newSong = new SongEntry(title, id, nextRequestId, sender, new Date().getTime(), durationSeconds);
+            sendMessage(channel, sender + ": added \"" + title + "\" to queue. id: " + nextRequestId);
+            SongEntry newSong = new SongEntry(title, youtubeId, nextRequestId, sender, new Date().getTime(), durationSeconds);
             ++nextRequestId;
             songList.add(newSong);
 
@@ -357,6 +506,17 @@ public class DjBot extends PircBot {
         } catch (IOException e) {
             e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
             return;
+        }
+    }
+
+    public void setVolume(String trim) {
+        try {
+            int vol = Integer.parseInt(trim);
+            if(vol >= 0 && vol <= 100) {
+                volume = vol;
+            }
+        } catch (NumberFormatException e) {
+            System.out.println("Not a number: \""+ trim +"\"");
         }
     }
 
@@ -419,33 +579,6 @@ public class DjBot extends PircBot {
         return false;
     }
 
-    private void songlist( String sender, String trim) {
-        if(StringUtils.isEmpty(dropboxLink)) {
-            sendMessage(channel, "Sorry " + sender + ", songlist isn't set up");
-        } else {
-            sendMessage(channel, sender + ": see the song list at " + dropboxLink);
-        }
-    }
-    private void skipsong( String sender, String trim) {
-        //todo: let mods do this
-    }
-
-    private void volume( String sender, String trim) {
-        //todo: let mods do this
-    }
-
-    public void setVolume(String trim) {
-        try {
-            int vol = Integer.parseInt(trim);
-            if(vol >= 0 && vol <= 100) {
-                volume = vol;
-            }
-        } catch (NumberFormatException e) {
-            System.out.println("Not a number: \""+ trim +"\"");
-        }
-    }
-
-
     public boolean noMoreSongs() {
         return songList.size() == 0 && secondarySongList.size() == 0;
     }
@@ -491,8 +624,10 @@ public class DjBot extends PircBot {
             secondaryReport = " (from secondary queue)";
         }
 
+        if(conf.isShowUpNextMessages()) {
+            sendMessage(channel, "Up next: " + song.getTitle() + ", requested by: " + song.getUser() + ", duration " + song.buildDurationStr() + ", id: " + song.getRequestId() + secondaryReport);
+        }
 
-        sendMessage(channel, "Up next: " + song.getTitle() + ", requested by: " + song.getUser() + ", duration " + song.buildDurationStr() + secondaryReport);
         currentSong = song;
 
         try {
@@ -502,6 +637,10 @@ public class DjBot extends PircBot {
         }
 
         return song;
+    }
+
+    public SongEntry getCurrentSong() {
+        return currentSong;
     }
 
     public String getChannel() {

@@ -5,6 +5,7 @@ import io.dropwizard.Configuration;
 import org.hibernate.validator.constraints.NotEmpty;
 
 import javax.validation.constraints.Min;
+import java.util.List;
 
 
 public class DjConfiguration extends Configuration {
@@ -27,8 +28,13 @@ public class DjConfiguration extends Configuration {
     private float maxSongLengthWhenQueueEmpty;
     private int maxConsoleLines;
     private boolean bumpLeaverSongsToSecondaryQueue;
+    @NotEmpty
+    private String userCountryCode;
+    private boolean showUpNextMessages;
+    private List<String> blacklistedYoutubeIds;
 
 
+    //this should be the channel name without the # at the front. (the same as the streamer's twitch account name)
     @JsonProperty
     public String getChannel() {
         return channel;
@@ -152,5 +158,35 @@ public class DjConfiguration extends Configuration {
     @JsonProperty
     public void setBumpLeaverSongsToSecondaryQueue(boolean bumpLeaverSongsToSecondaryQueue) {
         this.bumpLeaverSongsToSecondaryQueue = bumpLeaverSongsToSecondaryQueue;
+    }
+
+    @JsonProperty
+    public String getUserCountryCode() {
+        return userCountryCode;
+    }
+
+    @JsonProperty
+    public void setUserCountryCode(String userCountryCode) {
+        this.userCountryCode = userCountryCode;
+    }
+
+    @JsonProperty
+    public boolean isShowUpNextMessages() {
+        return showUpNextMessages;
+    }
+
+    @JsonProperty
+    public void setShowUpNextMessages(boolean showUpNextMessages) {
+        this.showUpNextMessages = showUpNextMessages;
+    }
+
+    @JsonProperty
+    public List<String> getBlacklistedYoutubeIds() {
+        return blacklistedYoutubeIds;
+    }
+
+    @JsonProperty
+    public void setBlacklistedYoutubeIds(List<String> blacklistedYoutubeIds) {
+        this.blacklistedYoutubeIds = blacklistedYoutubeIds;
     }
 }
