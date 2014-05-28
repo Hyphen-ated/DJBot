@@ -1,22 +1,22 @@
 package hyphenated.djbot.health;
 
 import com.codahale.metrics.health.HealthCheck;
-import hyphenated.djbot.DjBot;
+import hyphenated.djbot.DjService;
 import hyphenated.djbot.DjResource;
 
 public class ChannelCheck extends HealthCheck {
-    private final DjBot bot;
+    private final DjService bot;
     public ChannelCheck(DjResource resource) {
         this.bot = resource.getBot();
     }
 
     @Override
     protected Result check() throws Exception {
-        String channel = bot.getChannel();
+        String channel = bot.getStreamer();
         if (!channel.startsWith("#")) {
             return HealthCheck.Result.healthy();
         } else {
-            return Result.unhealthy("Channel name \"" + bot.getChannel() + " shouldn't start with #");
+            return Result.unhealthy("Channel name \"" + bot.getStreamer() + " shouldn't start with #");
         }
     }
 }

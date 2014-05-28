@@ -12,13 +12,15 @@ import javax.ws.rs.QueryParam;
 @Path("djbot")
 public class DjResource {
 
-    private DjBot bot;
+    private DjService bot;
 
     public DjResource(DjConfiguration conf) {
-        bot = new DjBot(conf);
+        DjIrcBot irc = new DjIrcBot(conf);
+        bot = new DjService(conf, irc);
+        irc.setDjService(bot);
     }
 
-    public DjBot getBot() {
+    public DjService getBot() {
         return bot;
     }
 
@@ -26,14 +28,14 @@ public class DjResource {
     @Path("check")
     @Produces("application/json")
     public String webCheck(@QueryParam("callback") String callback) {
-        return callback + "({\"channel\":\"" + bot.getChannel() + "\",\"volume\":\"" + bot.getVolume() + "\",\"skipid\":\"" + bot.getSongToSkip() + "\"})";
+        return callback + "({\"channel\":\"" + bot.getStreamer() + "\",\"volume\":\"" + bot.getVolume() + "\",\"skipid\":\"" + bot.getSongToSkip() + "\"})";
     }
     @GET
     @Path("updatevolume")
     @Produces("application/json")
     public String webVolume(@QueryParam("callback") String callback, @QueryParam("volume") String volume) {
         bot.setVolume(volume);
-        return callback + "({\"channel\":\"" + bot.getChannel() + "\",\"success\":true})";
+        return callback + "({\"channel\":\"" + bot.getStreamer() + "\",\"success\":true})";
     }
 
     @GET

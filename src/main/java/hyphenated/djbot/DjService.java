@@ -10,6 +10,8 @@ import org.codehaus.jackson.map.ObjectMapper;
 import org.jibble.pircbot.*;
 import org.joda.time.DateTime;
 import org.json.JSONObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
@@ -19,57 +21,39 @@ import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-//todo: split this into a DjBot and an DjIrcCommandHandler?
-public class DjBot extends PircBot {
+//the main brains of the djbot, handles the queues and whatnot
+public class DjService {
+    public static Logger logger = LoggerFactory.getLogger("hyphenated.djbot");
 
-    final String label_songrequest = "!songrequest";
-    final String label_songlist = "!songlist";
-    final String label_removesong = "!removesong";
-    final String label_skipsong = "!skipsong";
-    final String label_volume = "!volume";
-    final String label_currentsong = "!currentsong";
-    final String label_songs = "!songs";
-    final String queueHistoryFilePath = "queue.json";
-    final String unplayedSongsFilePath = "unplayedSongs.json";
+    private final String queueHistoryFilePath = "queue.json";
+    private final String unplayedSongsFilePath = "unplayedSongs.json";
+    private final String dboxFilePath = "/Public/songlist.txt";
 
-    final String dboxFilePath = "/Public/songlist.txt";
-
-    private DjConfiguration conf;
-
+    private final DjConfiguration conf;
+    private final DjIrcBot irc;
 
     private volatile SongEntry currentSong;
-
     private volatile ArrayList<SongEntry> songList = new ArrayList<>();
     private volatile ArrayList<SongEntry> secondarySongList = new ArrayList<>();
-
     private volatile ArrayList<SongEntry> songHistory = new ArrayList<>();
 
     private volatile int volume = 30;
     private volatile int nextRequestId;
-    private String dropboxLink;
-    private volatile HashSet<String> opUsernames = new HashSet<>();
+
     private volatile int songToSkip = 0;
 
 
-
-    //the following things should not change
+    //the following things should not change after initialization
     private final String streamer;
-    private final String channel;
-    private Set<String> blacklistedYoutubeIds;
+    private final String dropboxLink;
+    private Set<String> blacklistedYoutubeIds; //immutable after creation
 
 
-    public DjBot( DjConfiguration newConf) {
-
+    public DjService(DjConfiguration newConf, DjIrcBot irc) {
 
         this.conf = newConf;
-        this.channel = "#" + conf.getChannel();
         this.streamer = conf.getChannel();
-
-        javax.swing.SwingUtilities.invokeLater(new Runnable() {
-            public void run() {
-                GuiWindow.createAndShowGUI(conf.getMaxConsoleLines());
-            }
-        });
+        this.irc = irc;
 
         List<String> history = null;
         try {
@@ -83,7 +67,6 @@ public class DjBot extends PircBot {
             unplayedSongsStr = IOUtils.toString(new FileInputStream(unplayedSongsFilePath), "utf-8");
         } catch (IOException e) {
             throw new RuntimeException("Couldn't find file at " + unplayedSongsFilePath, e);
-
         }
 
         ObjectMapper mapper = new ObjectMapper();
@@ -121,69 +104,29 @@ public class DjBot extends PircBot {
 
         this.nextRequestId = lastRequestId + 1;
 
-        this.setName(conf.getBotName());
-
-        try {
-            this.connect("irc.twitch.tv", 6667, conf.getTwitchAccessToken());
-        } catch (Exception e) {
-            throw new RuntimeException("Couldn't connect to twitch irc", e);
-        }
-
-        this.joinChannel(channel);
-
-        this.setMessageDelay(conf.getMessageDelayMs());
-
         dropboxLink = determineDropboxLink(conf);
+
         HashSet<String> blacklist = new HashSet<>();
         if(conf.getBlacklistedYoutubeIds() != null) {
             blacklist.addAll(conf.getBlacklistedYoutubeIds());
         }
         this.blacklistedYoutubeIds = Collections.unmodifiableSet(blacklist);
 
-    }
-
-    @Override
-    protected void onUserMode(String targetNick, String sourceNick, String sourceLogin, String sourceHostname, String mode) {
-        //this is a hack because pircbot doesn't properly parse twitch's MODE messages
-        String mangledMessage = mode;
-        //it looks like so: "#hyphen_ated +o 910dan" where hyphen_ated is the channel and 910dan is the op
-        String[] pieces = mangledMessage.split(" ");
-        String modeChannel = pieces[0];
-        String modeChange = pieces[1];
-        String changedUser = pieces[2];
-
-        if(!modeChannel.equals(channel)) {
-            //we don't care about modes in other channels than our streamer's
-            return;
-        }
-
-        if(modeChange.charAt(1) != 'o') {
-            //we only care about ops, not other modes
-            return;
-        }
-
-        if(modeChange.charAt(0) == '+') {
-            opUsernames.add(changedUser);
-        } else if (modeChange.charAt(0) == '-') {
-            opUsernames.remove(changedUser);
-        } else {
-            System.out.println("Unexpected character in mode change: \"" + modeChange.charAt(0) + "\". expected + or -");
-        }
+        //create the scrollable console gui window
+        javax.swing.SwingUtilities.invokeLater(new Runnable() {
+            public void run() {
+                GuiWindow.createAndShowGUI(conf.getMaxConsoleLines());
+            }
+        });
 
     }
-
-    protected void onPart(String channel, String sender, String login, String hostname) {
-        opUsernames.remove(sender);
-    }
-
-
 
     private String determineDropboxLink(DjConfiguration conf) {
         DbxClient client = getDbxClient();
         try {
             return client.createShareableUrl(dboxFilePath);
         } catch (DbxException e) {
-            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+            logger.error("Can't create dropbox link", e);
             return null;
         }
     }
@@ -193,61 +136,42 @@ public class DjBot extends PircBot {
         return new DbxClient(config, conf.getDropboxAccessToken());
     }
 
-
-    public void onMessage(String channel, String sender,
-                          String login, String hostname, String message) {
-        message = message.trim();
-        if (message.startsWith(label_songrequest)) {
-            irc_songRequest(sender, message.substring(label_songrequest.length()).trim());
-        } else if (message.startsWith(label_songlist)) {
-            irc_songlist(sender, message.substring(label_songlist.length()).trim());
-        } else if (message.startsWith(label_removesong)) {
-            irc_removesong(sender, message.substring(label_removesong.length()).trim());
-        } else if (message.startsWith(label_skipsong)) {
-            //skipsong is the same as removesong
-            irc_removesong(sender, message.substring(label_skipsong.length()).trim());
-        } else if (message.startsWith(label_volume)) {
-            irc_volume(sender, message.substring(label_volume.length()).trim());
-        } else if (message.startsWith(label_currentsong)) {
-            irc_currentsong(sender);
-        } else if (message.startsWith(label_songs)) {
-            irc_songs(sender);
-        }
-    }
-
-    private boolean isMod(String sender) {
-        return opUsernames.contains(sender);
-    }
-
-    private void irc_songlist( String sender, String trim) {
+    public void irc_songlist( String sender) {
         if(StringUtils.isEmpty(dropboxLink)) {
-            sendMessage(channel, "Sorry " + sender + ", songlist isn't set up");
+            irc.message("Sorry " + sender + ", songlist isn't set up");
         } else {
-            sendMessage(channel, sender + ": see the song list at " + dropboxLink);
+            irc.message(sender + ": see the song list at " + dropboxLink);
         }
     }
-    private void irc_removesong(String sender, String trim) {
-        if(!isMod(sender)) {
-            sendMessage(channel, "removing or skipping songs is for mods only");
+
+    public void irc_removesong( String sender, String trim) {
+        if(!irc.isMod(sender)) {
+            irc.message("removing or skipping songs is for mods only");
             return;
         }
-        try {
-            int skipId = Integer.parseInt(trim);
-            if(currentSong.getRequestId() == skipId) {
-                nextSong();
-            }
-            removeSongFromList(songList, skipId, sender);
-            removeSongFromList(secondarySongList, skipId, sender);
-            songToSkip = skipId;
-            try {
-                updatePlayedSongsFile();
-            } catch (IOException e) {
-                e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
-            }
 
+        int skipId;
+        try {
+            skipId = Integer.parseInt(trim);
         } catch (NumberFormatException e) {
-            sendMessage(channel, sender + ": you must specify the song id to remove or skip (a number)");
+            irc.message(sender + ": you must specify the song id to remove or skip (a number)");
+            return;
         }
+
+        if (currentSong.getRequestId() == skipId) {
+            nextSong();
+        }
+        removeSongFromList(songList, skipId, sender);
+        removeSongFromList(secondarySongList, skipId, sender);
+        songToSkip = skipId;
+
+        try {
+            updatePlayedSongsFile();
+        } catch (IOException e) {
+            logger.error("problem updating playedSongs", e);
+        }
+
+
     }
 
     private void removeSongFromList(List<SongEntry> listOfSongs, int skipId, String sender) {
@@ -255,16 +179,16 @@ public class DjBot extends PircBot {
         while (entryIterator.hasNext()) {
             SongEntry curEntry = entryIterator.next();
             if (curEntry.getRequestId() == skipId) {
-                sendMessage(channel, sender + ": removed song \"" + curEntry.getTitle() + "\"");
+                irc.message(sender + ": removed song \"" + curEntry.getTitle() + "\"");
                 entryIterator.remove();
             }
         }
     }
 
 
-    private void irc_volume(String sender, String trim) {
-        if(!isMod(sender)) {
-            sendMessage(channel, "Volume is for mods only");
+    public void irc_volume(String sender, String trim) {
+        if(!irc.isMod(sender)) {
+            irc.message("Volume is for mods only");
             return;
         }
         try {
@@ -274,33 +198,31 @@ public class DjBot extends PircBot {
             } else if (newVolume > 100) {
                 newVolume = 100;
             }
-            sendMessage(channel, sender + ": volume changed from " + volume + " to " + newVolume);
+            irc.message( sender + ": volume changed from " + volume + " to " + newVolume);
             volume = newVolume;
         } catch (NumberFormatException e) {
-            sendMessage(channel, sender + ": volume must be between 1 and 100");
+            irc.message( sender + ": volume must be between 1 and 100");
         }
     }
 
-    private void irc_songs(String sender) {
-        sendMessage(channel, sender + ": use \"!songrequest youtubeURL\" to request a song");
+    public void irc_songs(String sender) {
+        irc.message( sender + ": use \"!songrequest youtubeURL\" to request a song");
     }
 
 
-    private void irc_currentsong(String sender) {
+    public void irc_currentsong(String sender) {
         if(currentSong == null) {
-            sendMessage(channel, "No current song (or the server just restarted)");
+            irc.message( sender + ": no current song (or the server just restarted)");
         } else {
-            sendMessage(channel, "Current song: \"" + currentSong.getTitle() + "\", url: " + currentSong.buildYoutubeUrl());
+            irc.message( sender + ": Current song: \"" + currentSong.getTitle() + "\", url: " + currentSong.buildYoutubeUrl());
         }
     }
-
-
 
 
     Pattern idPattern = Pattern.compile("[a-zA-Z0-9_-]{11}");
 
     //given a string that a user songrequested, try to figure out what it is a link to and do the work to handle it
-    void irc_songRequest(String sender, String requestStr) {
+    public void irc_songRequest(String sender, String requestStr) {
         Matcher m = idPattern.matcher(requestStr);
         //we support !songrequest <youtubeid>
         if (m.matches()) {
@@ -329,7 +251,7 @@ public class DjBot extends PircBot {
             return;
         }
 
-        System.out.println("Bad request: " + requestStr);
+        irc.message(sender + ": couldn't find a youtube video id in your request");
 
     }
 
@@ -363,7 +285,8 @@ public class DjBot extends PircBot {
         }
         try {
             //any song requested by someone who isn't still here should move from the primary list to the secondary list
-            User[] users = getUsers(channel);
+            //TODO keep track of the last seen time for each user and have some leeway here
+            User[] users = irc.getUsers();
             HashSet<String> userNamesPresent = new HashSet<>();
             for (User user : users) {
                 userNamesPresent.add(user.getNick());
@@ -531,12 +454,12 @@ public class DjBot extends PircBot {
             }
 
             if(!sender.equals(streamer) && moveToPrimaryIfSongInSecondary(youtubeId)) {
-                sendMessage(channel, sender + ": bumping \"" + title + "\" to main queue" );
+                irc.message(sender + ": bumping \"" + title + "\" to main queue" );
                 return;
             }
 
             ObjectMapper mapper = new ObjectMapper();
-            sendMessage(channel, sender + ": added \"" + title + "\" to queue. id: " + nextRequestId);
+            irc.message(sender + ": added \"" + title + "\" to queue. id: " + nextRequestId);
             SongEntry newSong = new SongEntry(title, youtubeId, nextRequestId, sender, new Date().getTime(), durationSeconds);
             ++nextRequestId;
             songList.add(newSong);
@@ -583,7 +506,7 @@ public class DjBot extends PircBot {
     }
 
     private void denySong(String sender, String reason) {
-        sendMessage(channel, "Sorry " + sender + ", " + reason);
+        irc.message("Sorry " + sender + ", " + reason);
     }
 
     private int idCountInMainList(String id) {
@@ -669,7 +592,7 @@ public class DjBot extends PircBot {
         }
 
         if(conf.isShowUpNextMessages()) {
-            sendMessage(channel, "Up next: " + song.getTitle() + ", requested by: " + song.getUser() + ", duration " + song.buildDurationStr() + ", id: " + song.getRequestId() + secondaryReport);
+            irc.message("Up next: " + song.getTitle() + ", requested by: " + song.getUser() + ", duration " + song.buildDurationStr() + ", id: " + song.getRequestId() + secondaryReport);
         }
 
         currentSong = song;
@@ -687,8 +610,8 @@ public class DjBot extends PircBot {
         return currentSong;
     }
 
-    public String getChannel() {
-        return channel;
+    public String getStreamer() {
+        return streamer;
     }
 
     public int getVolume() {
@@ -700,7 +623,7 @@ public class DjBot extends PircBot {
     }
 
     public DjState getStateRepresentation() {
-        DjState state = new DjState(songList, secondarySongList, songHistory, currentSong, volume, nextRequestId, dropboxLink, songToSkip, opUsernames);
+        DjState state = new DjState(songList, secondarySongList, songHistory, currentSong, volume, nextRequestId, dropboxLink, songToSkip, irc.opUsernames);
         return state;
     }
 }
