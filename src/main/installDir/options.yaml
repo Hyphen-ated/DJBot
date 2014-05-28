@@ -45,3 +45,34 @@ blacklistedYoutubeIds: []
 
 
 
+logging:
+
+    # The default level of all loggers. Can be OFF, ERROR, WARN, INFO, DEBUG, TRACE, or ALL.
+    level: INFO
+
+    appenders:
+      - type: file
+        # The file to which current statements will be logged.
+        currentLogFilename: ./logs/djbot.txt
+
+        # When the log file rotates, the archived log will be renamed to this and gzipped. The
+        # %d is replaced with the previous day (yyyy-MM-dd). Custom rolling windows can be created
+        # by passing a SimpleDateFormat-compatible format as an argument: "%d{yyyy-MM-dd-hh}".
+        archivedLogFilenamePattern: ./logs/djbot-%d.log.gz
+
+        # The number of archived files to keep.
+        archivedFileCount: 50
+
+        # The timezone used to format dates
+        timeZone: UTC
+
+      - type: console
+
+
+# this is to turn off the verbose requestLog entries from jetty
+server:
+    requestLog:
+        appenders:
+            - type: console
+              threshold: WARN
+

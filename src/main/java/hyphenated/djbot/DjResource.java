@@ -1,5 +1,6 @@
 package hyphenated.djbot;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.lang.StringUtils;
 import org.json.JSONObject;
 
@@ -83,6 +84,14 @@ public class DjResource {
 
         resp.put("next", nextSongObj);
         return callback + "(" + resp.toString() + ")";
+    }
+
+    @GET
+    @Path("info")
+    @Produces("application/json")
+    public String webInfo(@QueryParam("callback") String callback) throws Exception {
+        ObjectMapper mapper = new ObjectMapper();
+        return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(bot.getStateRepresentation());
     }
 
 

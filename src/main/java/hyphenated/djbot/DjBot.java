@@ -33,8 +33,9 @@ public class DjBot extends PircBot {
     final String unplayedSongsFilePath = "unplayedSongs.json";
 
     final String dboxFilePath = "/Public/songlist.txt";
-    private String streamer;
-    private String channel;
+
+    private DjConfiguration conf;
+
 
     private volatile SongEntry currentSong;
 
@@ -45,47 +46,17 @@ public class DjBot extends PircBot {
 
     private volatile int volume = 30;
     private volatile int nextRequestId;
-    private DjConfiguration conf;
-
     private String dropboxLink;
-
-    private HashSet<String> blacklistedYoutubeIds = new HashSet<>();
     private volatile HashSet<String> opUsernames = new HashSet<>();
     private volatile int songToSkip = 0;
 
-    @Override
-    protected void onUserMode(String targetNick, String sourceNick, String sourceLogin, String sourceHostname, String mode) {
-        //this is a hack because pircbot doesn't properly parse twitch's MODE messages
-        String mangledMessage = mode;
-        //it looks like so: "#hyphen_ated +o 910dan" where hyphen_ated is the channel and 910dan is the op
-        String[] pieces = mangledMessage.split(" ");
-        String modeChannel = pieces[0];
-        String modeChange = pieces[1];
-        String changedUser = pieces[2];
 
-        if(!modeChannel.equals(channel)) {
-            //we don't care about modes in other channels than our streamer's
-            return;
-        }
 
-        if(modeChange.charAt(1) != 'o') {
-            //we only care about ops, not other modes
-            return;
-        }
+    //the following things should not change
+    private final String streamer;
+    private final String channel;
+    private Set<String> blacklistedYoutubeIds;
 
-        if(modeChange.charAt(0) == '+') {
-            opUsernames.add(changedUser);
-        } else if (modeChange.charAt(0) == '-') {
-            opUsernames.remove(changedUser);
-        } else {
-            System.out.println("Unexpected character in mode change: \"" + modeChange.charAt(0) + "\". expected + or -");
-        }
-
-    }
-
-    protected void onPart(String channel, String sender, String login, String hostname) {
-        opUsernames.remove(sender);
-    }
 
     public DjBot( DjConfiguration newConf) {
 
@@ -150,7 +121,6 @@ public class DjBot extends PircBot {
 
         this.nextRequestId = lastRequestId + 1;
 
-        this.setVerbose(true);
         this.setName(conf.getBotName());
 
         try {
@@ -163,13 +133,52 @@ public class DjBot extends PircBot {
 
         this.setMessageDelay(conf.getMessageDelayMs());
 
-        this.dropboxLink = getDropboxLink(conf);
+        dropboxLink = determineDropboxLink(conf);
+        HashSet<String> blacklist = new HashSet<>();
         if(conf.getBlacklistedYoutubeIds() != null) {
-            this.blacklistedYoutubeIds.addAll(conf.getBlacklistedYoutubeIds());
+            blacklist.addAll(conf.getBlacklistedYoutubeIds());
         }
+        this.blacklistedYoutubeIds = Collections.unmodifiableSet(blacklist);
+
     }
 
-    private String getDropboxLink(DjConfiguration conf) {
+    @Override
+    protected void onUserMode(String targetNick, String sourceNick, String sourceLogin, String sourceHostname, String mode) {
+        //this is a hack because pircbot doesn't properly parse twitch's MODE messages
+        String mangledMessage = mode;
+        //it looks like so: "#hyphen_ated +o 910dan" where hyphen_ated is the channel and 910dan is the op
+        String[] pieces = mangledMessage.split(" ");
+        String modeChannel = pieces[0];
+        String modeChange = pieces[1];
+        String changedUser = pieces[2];
+
+        if(!modeChannel.equals(channel)) {
+            //we don't care about modes in other channels than our streamer's
+            return;
+        }
+
+        if(modeChange.charAt(1) != 'o') {
+            //we only care about ops, not other modes
+            return;
+        }
+
+        if(modeChange.charAt(0) == '+') {
+            opUsernames.add(changedUser);
+        } else if (modeChange.charAt(0) == '-') {
+            opUsernames.remove(changedUser);
+        } else {
+            System.out.println("Unexpected character in mode change: \"" + modeChange.charAt(0) + "\". expected + or -");
+        }
+
+    }
+
+    protected void onPart(String channel, String sender, String login, String hostname) {
+        opUsernames.remove(sender);
+    }
+
+
+
+    private String determineDropboxLink(DjConfiguration conf) {
         DbxClient client = getDbxClient();
         try {
             return client.createShareableUrl(dboxFilePath);
@@ -207,7 +216,7 @@ public class DjBot extends PircBot {
     }
 
     private boolean isMod(String sender) {
-        return this.opUsernames.contains(sender);
+        return opUsernames.contains(sender);
     }
 
     private void irc_songlist( String sender, String trim) {
@@ -641,7 +650,7 @@ public class DjBot extends PircBot {
 
         boolean playingSecondary = false;
         SongEntry song;
-                //if the main queue is empty, pull from secondary
+        //if the main queue is empty, pull from secondary
         if(songList.size() == 0) {
             if(secondarySongList.size() == 0) {
                 currentSong = null;
@@ -688,5 +697,10 @@ public class DjBot extends PircBot {
 
     public int getSongToSkip() {
         return songToSkip;
+    }
+
+    public DjState getStateRepresentation() {
+        DjState state = new DjState(songList, secondarySongList, songHistory, currentSong, volume, nextRequestId, dropboxLink, songToSkip, opUsernames);
+        return state;
     }
 }
