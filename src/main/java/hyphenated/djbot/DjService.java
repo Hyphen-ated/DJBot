@@ -50,7 +50,6 @@ public class DjService {
 
 
     public DjService(DjConfiguration newConf, DjIrcBot irc) {
-
         this.conf = newConf;
         this.streamer = conf.getChannel();
         this.irc = irc;
@@ -592,6 +591,15 @@ public class DjService {
 
     @Nullable
     public synchronized SongEntry nextSong() {
+
+        if(currentSong != null) {
+            lastPlayedSongs.add(currentSong);
+        }
+
+        if(lastPlayedSongs.size() > conf.getSonglistHistoryLength()) {
+            lastPlayedSongs.remove(0);
+        }
+
         updateQueuesForLeavers();
         SongEntry song;
         String secondaryReport = "";
@@ -609,11 +617,6 @@ public class DjService {
 
         if(conf.isShowUpNextMessages()) {
             irc.message("Up next: " + song.getTitle() + ", requested by: " + song.getUser() + ", duration " + song.buildDurationStr() + ", id: " + song.getRequestId() + secondaryReport);
-        }
-
-        lastPlayedSongs.add(song);
-        if(lastPlayedSongs.size() > conf.getSonglistHistoryLength()) {
-            lastPlayedSongs.remove(0);
         }
 
         currentSong = song;

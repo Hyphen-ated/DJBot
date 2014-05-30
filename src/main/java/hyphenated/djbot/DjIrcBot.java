@@ -153,6 +153,6 @@ public class DjIrcBot extends PircBot {
     }
 
     public boolean isMod(String sender) {
-        return opUsernames.contains(sender);
+        return opUsernames.contains(sender) || dj.getStreamer().equals(sender);
     }
 }

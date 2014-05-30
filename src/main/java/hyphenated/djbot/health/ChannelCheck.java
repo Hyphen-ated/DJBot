@@ -7,7 +7,7 @@ import hyphenated.djbot.DjResource;
 public class ChannelCheck extends HealthCheck {
     private final DjService bot;
     public ChannelCheck(DjResource resource) {
-        this.bot = resource.getBot();
+        this.bot = resource.getDj();
     }
 
     @Override
