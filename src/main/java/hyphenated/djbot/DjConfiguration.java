@@ -32,6 +32,7 @@ public class DjConfiguration extends Configuration {
     private boolean showUpNextMessages;
     private List<String> blacklistedYoutubeIds;
     private int secondaryQueueCountdownSeconds;
+    private int songlistHistoryLength;
 
 
     //this should be the channel name without the # at the front. (the same as the streamer's twitch account name)
@@ -188,5 +189,13 @@ public class DjConfiguration extends Configuration {
     @JsonProperty
     public void setSecondaryQueueCountdownSeconds(int secondaryQueueCountdownSeconds) {
         this.secondaryQueueCountdownSeconds = secondaryQueueCountdownSeconds;
+    }
+
+    public int getSonglistHistoryLength() {
+        return songlistHistoryLength;
+    }
+
+    public void setSonglistHistoryLength(int songlistHistoryLength) {
+        this.songlistHistoryLength = songlistHistoryLength;
     }
 }

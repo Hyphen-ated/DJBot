@@ -38,6 +38,8 @@ public class DjService {
     private volatile ArrayList<SongEntry> secondarySongList = new ArrayList<>();
     private volatile ArrayList<SongEntry> songHistory = new ArrayList<>();
 
+    private volatile ArrayList<SongEntry> lastPlayedSongs = new ArrayList<>();
+
     private volatile int volume = 30;
     private volatile int nextRequestId;
 
@@ -211,8 +213,17 @@ public class DjService {
         if(currentSong == null) {
             irc.message( sender + ": no current song (or the server just restarted)");
         } else {
-            irc.message( sender + ": Current song: \"" + currentSong.getTitle() + "\", url: " + currentSong.buildYoutubeUrl());
+            irc.message( sender + ": Current song: \"" + currentSong.getTitle() + "\", url: " + currentSong.buildYoutubeUrl() + ", id: " + currentSong.getRequestId());
         }
+    }
+
+    public synchronized void irc_lastsong(String sender) {
+        if(lastPlayedSongs.size() == 0) {
+            irc.message(sender + ": no song has finished playing yet");
+            return;
+        }
+        SongEntry lastSong = lastPlayedSongs.get(lastPlayedSongs.size()-1);
+        irc.message( sender + ": Last song: \"" + currentSong.getTitle() + "\", url: " + currentSong.buildYoutubeUrl());
     }
 
 
@@ -335,25 +346,54 @@ public class DjService {
         StringBuilder sb = new StringBuilder();
         int runningSeconds = 0;
 
-        //todo: clean up this duplication
         if(currentSong != null) {
             runningSeconds += currentSong.getDurationSeconds();
             sb.append("Now playing:\n");
-            sb.append(currentSong.buildYoutubeUrl()).append(" \"").append(currentSong.getTitle()).append("\", requested by " + currentSong.getUser() + ", id: " + currentSong.getRequestId() + "\n" );
+            appendSongReportEntry(sb, currentSong);
+            sb.append("\n");
         }
         sb.append("============\n");
         sb.append("Main list:\n============\n");
         for(SongEntry song : songList) {
-            sb.append(song.buildYoutubeUrl()).append(" \"").append(song.getTitle()).append("\", requested by " + song.getUser() + ", id: " + song.getRequestId() + ", plays in about " + runningSeconds / 60 + " minutes\n\n" );
+            appendSongReportEntry(sb, song);
+            appendPlaysNextInfo(sb, runningSeconds);
+            sb.append("\n\n" );
             runningSeconds += song.getDurationSeconds();
         }
         sb.append("\n\nSecondary list:\n============\n");
         for(SongEntry song : secondarySongList) {
-            sb.append(song.buildYoutubeUrl()).append(" \"").append(song.getTitle()).append("\", requested by " + song.getUser() + ", id: " + song.getRequestId() + ", plays in about " + runningSeconds / 60 + " minutes (if nothing is requested)\n\n" );
+            appendSongReportEntry(sb, song);
+            appendPlaysNextInfo(sb, runningSeconds);
+            sb.append(" minutes (if nothing is requested)\n\n" );
             runningSeconds += song.getDurationSeconds();
 
         }
+        runningSeconds = 0;
+        if(lastPlayedSongs.size() > 0) {
+            sb.append("\n\nAlready played songs:\n============\n");
+            for(int i = lastPlayedSongs.size()-1; i >=0; --i) {
+                SongEntry song = lastPlayedSongs.get(i);
+                appendSongReportEntry(sb, song);
+                appendPlaysNextInfo(sb, runningSeconds);
+                sb.append(" ago\n\n" );
+                runningSeconds += song.getDurationSeconds();
+            }
+        }
+
+
         return sb.toString();
+    }
+
+    private void appendSongReportEntry(StringBuilder sb, SongEntry song) {
+        sb.append(song.buildYoutubeUrl()).append(" \"")
+                .append(song.getTitle())
+                .append("\", requested by ").append(song.getUser())
+                .append(", id: ").append(song.getRequestId());
+
+    }
+
+    private void appendPlaysNextInfo(StringBuilder sb, int runningSeconds) {
+        sb.append(", about ").append(runningSeconds / 60).append(" minutes");
     }
 
     private void doYoutubeRequest(String sender, String youtubeId) {
@@ -553,7 +593,6 @@ public class DjService {
     @Nullable
     public synchronized SongEntry nextSong() {
         updateQueuesForLeavers();
-        boolean playingSecondary = false;
         SongEntry song;
         String secondaryReport = "";
         //if the main queue is empty, pull from secondary
@@ -570,6 +609,11 @@ public class DjService {
 
         if(conf.isShowUpNextMessages()) {
             irc.message("Up next: " + song.getTitle() + ", requested by: " + song.getUser() + ", duration " + song.buildDurationStr() + ", id: " + song.getRequestId() + secondaryReport);
+        }
+
+        lastPlayedSongs.add(song);
+        if(lastPlayedSongs.size() > conf.getSonglistHistoryLength()) {
+            lastPlayedSongs.remove(0);
         }
 
         currentSong = song;

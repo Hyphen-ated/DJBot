@@ -27,8 +27,8 @@ maxSongLength: 8.0
 # maximum length in minutes that a song can be if the queue is empty (hey, maybe it's long but at least we get some music)
 maxSongLengthWhenQueueEmpty: 12.0
 
-# controls whether someone's song gets de-prioritized if they leave the chat
-bumpLeaverSongsToSecondaryQueue: true
+# how long to wait before bumping someone's song to the secondary queue if they leave chat (0 to disable)
+secondaryQueueCountdownSeconds: 30
 
 # how many lines can the integrated console window show
 maxConsoleLines: 99999
@@ -42,6 +42,9 @@ showUpNextMessages: true
 
 # comma-separated list of youtube ids (11 characters each, each in quotes) that should not be played
 blacklistedYoutubeIds: []
+
+# how many previous songs to show on the songlist page
+songlistHistoryLength: 10
 
 
 

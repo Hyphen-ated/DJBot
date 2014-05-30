@@ -19,6 +19,7 @@ public class DjIrcBot extends PircBot {
     final String label_skipsong = "!skipsong";
     final String label_volume = "!volume";
     final String label_currentsong = "!currentsong";
+    final String label_lastsong = "!lastsong";
     final String label_songs = "!songs";
 
     public volatile HashSet<String> opUsernames = new HashSet<>();
@@ -129,6 +130,9 @@ public class DjIrcBot extends PircBot {
         } else if (message.startsWith(label_currentsong)) {
             logMessage(sender, message);
             dj.irc_currentsong(sender);
+        } else if (message.startsWith(label_lastsong)) {
+            logMessage(sender, message);
+            dj.irc_lastsong(sender);
         } else if (message.startsWith(label_songs)) {
             logMessage(sender, message);
             dj.irc_songs(sender);
