@@ -352,24 +352,28 @@ public class DjService {
             sb.append("\n");
         }
         sb.append("============\n");
-        sb.append("Main list:\n============\n");
-        for(SongEntry song : songList) {
-            appendSongReportEntry(sb, song);
-            appendPlaysNextInfo(sb, runningSeconds);
-            sb.append("\n\n" );
-            runningSeconds += song.getDurationSeconds();
+        if(songList.size() > 0) {
+            sb.append("Main list:\n============\n");
+            for(SongEntry song : songList) {
+                appendSongReportEntry(sb, song);
+                appendPlaysNextInfo(sb, runningSeconds);
+                sb.append("\n\n" );
+                runningSeconds += song.getDurationSeconds();
+            }
         }
-        sb.append("\n\nSecondary list:\n============\n");
-        for(SongEntry song : secondarySongList) {
-            appendSongReportEntry(sb, song);
-            appendPlaysNextInfo(sb, runningSeconds);
-            sb.append(" minutes (if nothing is requested)\n\n" );
-            runningSeconds += song.getDurationSeconds();
+        if(secondarySongList.size() > 0) {
+            sb.append("\n\nSecondary list:\n============\n");
+            for(SongEntry song : secondarySongList) {
+                appendSongReportEntry(sb, song);
+                appendPlaysNextInfo(sb, runningSeconds);
+                sb.append(" minutes (if nothing is requested)\n\n" );
+                runningSeconds += song.getDurationSeconds();
+            }
+        }
 
-        }
         runningSeconds = 0;
         if(lastPlayedSongs.size() > 0) {
-            sb.append("\n\nAlready played songs:\n============\n");
+            sb.append("\n\nPreviously played songs:\n============\n");
             for(int i = lastPlayedSongs.size()-1; i >=0; --i) {
                 SongEntry song = lastPlayedSongs.get(i);
                 appendSongReportEntry(sb, song);
@@ -491,7 +495,13 @@ public class DjService {
             }
 
             ObjectMapper mapper = new ObjectMapper();
-            irc.message(sender + ": added \"" + title + "\" to queue. id: " + nextRequestId);
+
+            if(currentSong == null && conf.isShowUpNextMessages()) {
+                //don't show this message when there's no song playing, because we're immediately going to show an "up next" message and it makes this one redundant
+                irc.message(sender + ": added \"" + title + "\" to queue. id: " + nextRequestId);
+            }
+
+
             SongEntry newSong = new SongEntry(title, youtubeId, nextRequestId, sender, new Date().getTime(), durationSeconds);
             ++nextRequestId;
             songList.add(newSong);
