@@ -1,6 +1,10 @@
 package hyphenated.djbot;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import hyphenated.djbot.json.CheckResponse;
+import hyphenated.djbot.json.NextResponse;
+import hyphenated.djbot.json.SongEntry;
 import org.apache.commons.lang.StringUtils;
 import org.json.JSONObject;
 
@@ -25,34 +29,47 @@ public class DjResource {
         return bot;
     }
 
+    private String wrapForJsonp(Object response, String callback) {
+        String objString = null;
+        if(response instanceof String) {
+            objString = (String) response;
+        } else {
+            ObjectMapper mapper = new ObjectMapper();
+
+            try {
+                objString = mapper.writeValueAsString(response);
+            } catch (JsonProcessingException e) {
+                throw new RuntimeException("Object of type " + response.getClass().getName() + " not json serializable");
+            }
+        }
+        if(callback != null) {
+            return callback + "(" + objString + ")";
+        } else {
+            return objString;
+        }
+    }
+
     @GET
     @Path("check")
     @Produces("application/json")
     public String webCheck(@QueryParam("callback") String callback) {
-        if(bot.getCurrentSong() == null) {
-            return "";
-        }
-        return callback + "({\"channel\":\"" + bot.getStreamer() + "\",\"volume\":\"" + bot.getVolume() + "\",\"id\":\"" + bot.getCurrentSong().getRequestId() + "\"})";
+        return wrapForJsonp(new CheckResponse(bot.getVolume(), bot.getCurrentSong()), callback);
     }
+
     @GET
     @Path("updatevolume")
     @Produces("application/json")
     public String webVolume(@QueryParam("callback") String callback, @QueryParam("volume") String volume) {
         bot.setVolume(volume);
-        return callback + "({\"channel\":\"" + bot.getStreamer() + "\",\"success\":true})";
+        return wrapForJsonp("", callback);
     }
 
     @GET
     @Path("current")
     @Produces("application/json")
     public String webCurrent(@QueryParam("callback") String callback) {
-        SongEntry curSong = bot.startCurrentSong();
-        String json = curSong != null ? curSong.toJsonString() : "";
-        if(StringUtils.isEmpty(callback)) {
-            return json;
-        } else {
-            return callback + "(" + json + ")";
-        }
+        bot.startCurrentSong();
+        return wrapForJsonp(bot.getCurrentSong(), callback);
     }
 
     @GET
@@ -62,37 +79,24 @@ public class DjResource {
         SongEntry song;
         synchronized (bot) {
             if(bot.noMoreSongs()) {
-                return callback + "({\"status\":\"failure\"})";
+                return wrapForJsonp(new NextResponse("failure"), callback);
             }
 
             if(!StringUtils.isEmpty(idToSkip)) {
                 if(! (idToSkip.equals(bot.getCurrentSong().getRequestId()))) {
                     //we're trying to skip something that already ended or got skipped
-                    return callback + "({\"status\":\"failure\"})";
+                    return wrapForJsonp(new NextResponse("failure"), callback);
                 }
             }
             song = bot.nextSong();
         }
 
-        //todo: clean this up, we're not really giving accurate statuses
+
         if(song == null) {
-            return callback + "({\"status\":\"failure\"})";
+            return wrapForJsonp(new NextResponse("failure"), callback);
         }
 
-        JSONObject resp = new JSONObject();
-        resp.put("status", "success");
-        resp.put("noNewSong", "false");
-
-        JSONObject nextSongObj = new JSONObject();
-        nextSongObj.put("vid", song.getVideoId());
-        nextSongObj.put("url", song.buildYoutubeUrl());
-        nextSongObj.put("id", song.getRequestId());
-        nextSongObj.put("user", song.getUser());
-        nextSongObj.put("type", "youtube");
-        nextSongObj.put("title", song.getTitle());
-
-        resp.put("next", nextSongObj);
-        return callback + "(" + resp.toString() + ")";
+        return wrapForJsonp(new NextResponse("success", song), callback);
     }
 
     @GET
@@ -100,7 +104,9 @@ public class DjResource {
     @Produces("application/json")
     public String webInfo(@QueryParam("callback") String callback) throws Exception {
         ObjectMapper mapper = new ObjectMapper();
-        return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(bot.getStateRepresentation());
+        return wrapForJsonp(mapper.writerWithDefaultPrettyPrinter().writeValueAsString(bot.getStateRepresentation()),
+                            callback);
+
     }
 
 

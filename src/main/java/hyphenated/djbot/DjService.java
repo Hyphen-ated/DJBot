@@ -1,18 +1,19 @@
 package hyphenated.djbot;
 
 import com.dropbox.core.*;
+import hyphenated.djbot.json.SongEntry;
 import org.apache.commons.httpclient.HttpClient;
 import org.apache.commons.httpclient.methods.GetMethod;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringUtils;
 import org.codehaus.jackson.map.ObjectMapper;
-import org.jibble.pircbot.*;
 import org.joda.time.DateTime;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -553,6 +554,7 @@ public class DjService {
         return nextSong();
     }
 
+    @Nullable
     public synchronized SongEntry nextSong() {
         updateQueuesForLeavers();
         boolean playingSecondary = false;

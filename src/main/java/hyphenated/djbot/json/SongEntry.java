@@ -1,4 +1,4 @@
-package hyphenated.djbot;
+package hyphenated.djbot.json;
 
 
 import org.codehaus.jackson.map.ObjectMapper;
