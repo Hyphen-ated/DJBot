@@ -105,7 +105,7 @@ public class SongEntry {
 
 
     public String buildYoutubeUrl() {
-        return "http://www.youtube.com/watch?" + videoId;
+        return "http://www.youtube.com/watch?v=" + videoId;
     }
 
     public String buildDurationStr() {
