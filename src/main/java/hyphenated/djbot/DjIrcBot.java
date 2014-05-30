@@ -2,7 +2,9 @@ package hyphenated.djbot;
 
 import org.jibble.pircbot.PircBot;
 import org.jibble.pircbot.User;
+import org.joda.time.DateTime;
 
+import java.util.HashMap;
 import java.util.HashSet;
 
 
@@ -20,6 +22,7 @@ public class DjIrcBot extends PircBot {
     final String label_songs = "!songs";
 
     public volatile HashSet<String> opUsernames = new HashSet<>();
+    public volatile HashMap<String, DateTime> leaveTimeByUser = new HashMap<>();
 
     private DjService dj;
 
@@ -86,6 +89,15 @@ public class DjIrcBot extends PircBot {
         if(opUsernames.contains(sender)) {
             opUsernames.remove(sender);
             dj.logger.info("Moderator " + sender + " left channel");
+        }
+        leaveTimeByUser.put(sender, new DateTime());
+    }
+
+    @Override
+    protected void onJoin(String channel, String sender, String login, String hostname) {
+        if(leaveTimeByUser.containsKey(sender)) {
+            leaveTimeByUser.remove(sender);
+            dj.logger.info("User " + sender + " rejoined, removing them from the leaveTime map");
         }
     }
 

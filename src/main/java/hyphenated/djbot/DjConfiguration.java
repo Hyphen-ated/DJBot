@@ -27,11 +27,11 @@ public class DjConfiguration extends Configuration {
     private float maxSongLength;
     private float maxSongLengthWhenQueueEmpty;
     private int maxConsoleLines;
-    private boolean bumpLeaverSongsToSecondaryQueue;
     @NotEmpty
     private String userCountryCode;
     private boolean showUpNextMessages;
     private List<String> blacklistedYoutubeIds;
+    private int secondaryQueueCountdownSeconds;
 
 
     //this should be the channel name without the # at the front. (the same as the streamer's twitch account name)
@@ -151,16 +151,6 @@ public class DjConfiguration extends Configuration {
     }
 
     @JsonProperty
-    public boolean isBumpLeaverSongsToSecondaryQueue() {
-        return bumpLeaverSongsToSecondaryQueue;
-    }
-
-    @JsonProperty
-    public void setBumpLeaverSongsToSecondaryQueue(boolean bumpLeaverSongsToSecondaryQueue) {
-        this.bumpLeaverSongsToSecondaryQueue = bumpLeaverSongsToSecondaryQueue;
-    }
-
-    @JsonProperty
     public String getUserCountryCode() {
         return userCountryCode;
     }
@@ -188,5 +178,15 @@ public class DjConfiguration extends Configuration {
     @JsonProperty
     public void setBlacklistedYoutubeIds(List<String> blacklistedYoutubeIds) {
         this.blacklistedYoutubeIds = blacklistedYoutubeIds;
+    }
+
+    @JsonProperty
+    public int getSecondaryQueueCountdownSeconds() {
+        return secondaryQueueCountdownSeconds;
+    }
+
+    @JsonProperty
+    public void setSecondaryQueueCountdownSeconds(int secondaryQueueCountdownSeconds) {
+        this.secondaryQueueCountdownSeconds = secondaryQueueCountdownSeconds;
     }
 }

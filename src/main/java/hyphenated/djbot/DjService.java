@@ -280,25 +280,21 @@ public class DjService {
     }
 
     private void updateQueuesForLeavers() {
-        if(!conf.isBumpLeaverSongsToSecondaryQueue()) {
+        if(conf.getSecondaryQueueCountdownSeconds() == 0) {
             return;
         }
         try {
-            //any song requested by someone who isn't still here should move from the primary list to the secondary list
-            //TODO keep track of the last seen time for each user and have some leeway here
-            User[] users = irc.getUsers();
-            HashSet<String> userNamesPresent = new HashSet<>();
-            for (User user : users) {
-                userNamesPresent.add(user.getNick());
-            }
+            //any song requested by someone who has been gone for long enough should move from the primary list to the secondary list
 
             ArrayList<SongEntry> newSongList = new ArrayList<>();
             for (SongEntry song : songList) {
-                if (userNamesPresent.contains(song.getUser())) {
-                    newSongList.add(song);
-                } else {
-                    logger.info("Bumping songid " + song.getRequestId() + " to secondary queue because its requester (" + song.getUser() + ") is gone");
+                DateTime leaveTime = irc.leaveTimeByUser.get(song.getUser());
+
+                if (leaveTime != null && leaveTime.plusSeconds(conf.getSecondaryQueueCountdownSeconds()).isBeforeNow()) {
+                    logger.info("Bumping songid " + song.getRequestId() + " to secondary queue because its requester (" + song.getUser() + ") has been gone for " + conf.getSecondaryQueueCountdownSeconds() + " seconds");
                     secondarySongList.add(song);
+                } else {
+                    newSongList.add(song);
                 }
             }
             songList = newSongList;
