@@ -7,6 +7,7 @@ import java.util.HashSet;
 
 
 public class DjIrcBot extends PircBot {
+    private final DjConfiguration conf;
 
     private final String channel;
 
@@ -23,14 +24,17 @@ public class DjIrcBot extends PircBot {
     private DjService dj;
 
     public DjIrcBot(DjConfiguration conf) {
+        this.conf = conf;
         this.channel = "#" + conf.getChannel();
-
-
         this.setMessageDelay(conf.getMessageDelayMs());
-
         this.setName(conf.getBotName());
+    }
 
 
+    public void startup() {
+        if(dj == null) {
+            throw new IllegalStateException("DjIrcBat.startup() must be called after setDjService");
+        }
         try {
             this.connect("irc.twitch.tv", 6667, conf.getTwitchAccessToken());
         } catch (Exception e) {
@@ -38,7 +42,6 @@ public class DjIrcBot extends PircBot {
         }
 
         this.joinChannel(channel);
-
     }
 
     public void setDjService(DjService dj) {
@@ -61,54 +64,72 @@ public class DjIrcBot extends PircBot {
             return;
         }
 
-        if(modeChange.charAt(1) != 'o') {
+        if (modeChange.charAt(1) != 'o') {
             //we only care about ops, not other modes
             return;
         }
 
-        if(modeChange.charAt(0) == '+') {
+        if (modeChange.charAt(0) == '+') {
             opUsernames.add(changedUser);
+            dj.logger.info("Moderator priviliges added for " + changedUser);
         } else if (modeChange.charAt(0) == '-') {
             opUsernames.remove(changedUser);
+            dj.logger.info("Moderator priviliges removed for " + changedUser);
         } else {
-            System.out.println("Unexpected character in mode change: \"" + modeChange.charAt(0) + "\". expected + or -");
+            dj.logger.warn("Unexpected character in mode change: \"" + modeChange.charAt(0) + "\". expected + or -");
         }
 
     }
 
     @Override
     protected void onPart(String channel, String sender, String login, String hostname) {
-        opUsernames.remove(sender);
+        if(opUsernames.contains(sender)) {
+            opUsernames.remove(sender);
+            dj.logger.info("Moderator " + sender + " left channel");
+        }
     }
 
     @Override
     public void onMessage(String channel, String sender,
                           String login, String hostname, String message) {
         if(dj == null) {
-            DjService.logger.error("DjIrcBot trying to handle a message but its djService hasn't been set");
+            dj.logger.error("DjIrcBot trying to handle a message but its djService hasn't been set");
+            return;
         }
 
         message = message.trim();
         if (message.startsWith(label_songrequest)) {
+            logMessage(sender, message);
             dj.irc_songRequest(sender, message.substring(label_songrequest.length()).trim());
         } else if (message.startsWith(label_songlist)) {
+            logMessage(sender, message);
             dj.irc_songlist(sender);
         } else if (message.startsWith(label_removesong)) {
+            logMessage(sender, message);
             dj.irc_removesong(sender, message.substring(label_removesong.length()).trim());
         } else if (message.startsWith(label_skipsong)) {
             //skipsong is the same as removesong
+            logMessage(sender, message);
             dj.irc_removesong(sender, message.substring(label_skipsong.length()).trim());
         } else if (message.startsWith(label_volume)) {
+            logMessage(sender, message);
             dj.irc_volume(sender, message.substring(label_volume.length()).trim());
         } else if (message.startsWith(label_currentsong)) {
+            logMessage(sender, message);
             dj.irc_currentsong(sender);
         } else if (message.startsWith(label_songs)) {
+            logMessage(sender, message);
             dj.irc_songs(sender);
         }
     }
 
+    private void logMessage(String sender, String message) {
+        dj.logger.info("IRC: " + sender + ": " + message);
+    }
+
     public void message(String msg) {
         sendMessage(channel, msg);
+        logMessage(conf.getBotName(), msg);
     }
 
     public User[] getUsers() {

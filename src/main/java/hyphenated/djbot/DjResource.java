@@ -18,6 +18,7 @@ public class DjResource {
         DjIrcBot irc = new DjIrcBot(conf);
         bot = new DjService(conf, irc);
         irc.setDjService(bot);
+        irc.startup();
     }
 
     public DjService getBot() {
@@ -28,7 +29,10 @@ public class DjResource {
     @Path("check")
     @Produces("application/json")
     public String webCheck(@QueryParam("callback") String callback) {
-        return callback + "({\"channel\":\"" + bot.getStreamer() + "\",\"volume\":\"" + bot.getVolume() + "\",\"skipid\":\"" + bot.getSongToSkip() + "\"})";
+        if(bot.getCurrentSong() == null) {
+            return "";
+        }
+        return callback + "({\"channel\":\"" + bot.getStreamer() + "\",\"volume\":\"" + bot.getVolume() + "\",\"id\":\"" + bot.getCurrentSong().getRequestId() + "\"})";
     }
     @GET
     @Path("updatevolume")
@@ -55,17 +59,20 @@ public class DjResource {
     @Path("next")
     @Produces("application/json")
     public String webNext(@QueryParam("callback") String callback, @QueryParam("idToSkip") String idToSkip) {
-        if(bot.noMoreSongs()) {
-            return callback + "({\"status\":\"failure\"})";
-        }
-
-        if(!StringUtils.isEmpty(idToSkip)) {
-            if(! (idToSkip.equals(bot.getCurrentSong().getRequestId()))) {
-                //we're trying to skip something that already ended or got skipped
+        SongEntry song;
+        synchronized (bot) {
+            if(bot.noMoreSongs()) {
                 return callback + "({\"status\":\"failure\"})";
             }
+
+            if(!StringUtils.isEmpty(idToSkip)) {
+                if(! (idToSkip.equals(bot.getCurrentSong().getRequestId()))) {
+                    //we're trying to skip something that already ended or got skipped
+                    return callback + "({\"status\":\"failure\"})";
+                }
+            }
+            song = bot.nextSong();
         }
-        SongEntry song = bot.nextSong();
 
         //todo: clean this up, we're not really giving accurate statuses
         if(song == null) {

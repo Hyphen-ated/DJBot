@@ -23,7 +23,7 @@ import java.util.regex.Pattern;
 
 //the main brains of the djbot, handles the queues and whatnot
 public class DjService {
-    public static Logger logger = LoggerFactory.getLogger("hyphenated.djbot");
+    public Logger logger = LoggerFactory.getLogger("hyphenated.djbot");
 
     private final String queueHistoryFilePath = "queue.json";
     private final String unplayedSongsFilePath = "unplayedSongs.json";
@@ -136,7 +136,7 @@ public class DjService {
         return new DbxClient(config, conf.getDropboxAccessToken());
     }
 
-    public void irc_songlist( String sender) {
+    public synchronized void irc_songlist( String sender) {
         if(StringUtils.isEmpty(dropboxLink)) {
             irc.message("Sorry " + sender + ", songlist isn't set up");
         } else {
@@ -144,7 +144,7 @@ public class DjService {
         }
     }
 
-    public void irc_removesong( String sender, String trim) {
+    public synchronized void irc_removesong( String sender, String skipIdStr) {
         if(!irc.isMod(sender)) {
             irc.message("removing or skipping songs is for mods only");
             return;
@@ -152,7 +152,7 @@ public class DjService {
 
         int skipId;
         try {
-            skipId = Integer.parseInt(trim);
+            skipId = Integer.parseInt(skipIdStr);
         } catch (NumberFormatException e) {
             irc.message(sender + ": you must specify the song id to remove or skip (a number)");
             return;
@@ -186,13 +186,13 @@ public class DjService {
     }
 
 
-    public void irc_volume(String sender, String trim) {
+    public void irc_volume(String sender, String newVolStr) {
         if(!irc.isMod(sender)) {
             irc.message("Volume is for mods only");
             return;
         }
         try {
-            int newVolume = Integer.parseInt(trim);
+            int newVolume = Integer.parseInt(newVolStr);
             if(newVolume < 1) {
                 newVolume = 1;
             } else if (newVolume > 100) {
@@ -210,7 +210,7 @@ public class DjService {
     }
 
 
-    public void irc_currentsong(String sender) {
+    public synchronized void irc_currentsong(String sender) {
         if(currentSong == null) {
             irc.message( sender + ": no current song (or the server just restarted)");
         } else {
@@ -222,7 +222,7 @@ public class DjService {
     Pattern idPattern = Pattern.compile("[a-zA-Z0-9_-]{11}");
 
     //given a string that a user songrequested, try to figure out what it is a link to and do the work to handle it
-    public void irc_songRequest(String sender, String requestStr) {
+    public synchronized void irc_songRequest(String sender, String requestStr) {
         Matcher m = idPattern.matcher(requestStr);
         //we support !songrequest <youtubeid>
         if (m.matches()) {
@@ -297,6 +297,7 @@ public class DjService {
                 if (userNamesPresent.contains(song.getUser())) {
                     newSongList.add(song);
                 } else {
+                    logger.info("Bumping songid " + song.getRequestId() + " to secondary queue because its requester (" + song.getUser() + ") is gone");
                     secondarySongList.add(song);
                 }
             }
@@ -332,7 +333,7 @@ public class DjService {
             DbxEntry.File uploadedFile = client.uploadFile(dboxFilePath,
                     DbxWriteMode.force(), contentBytes.length, new ByteArrayInputStream(contentBytes));
         } catch (DbxException e) {
-            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+            logger.error("Problem talking to dropbox to update the songlist", e);
         }
     }
 
@@ -376,22 +377,21 @@ public class DjService {
         try {
             int errcode = client.executeMethod(get);
             if(errcode != 200) {
-                System.out.println("Song request error: got code " + errcode + " from " + infoUrl);
+                logger.info("Song request error: got code " + errcode + " from " + infoUrl);
                 denySong(sender, "I couldn't find info about that video on youtube");
 
                 return;
             }
         } catch (IOException e) {
-            System.out.println("Couldn't get info from youtube api. Stacktrace:");
-            e.printStackTrace();
+            logger.info("Couldn't get info from youtube api", e);
             denySong(sender, "I couldn't find info about that video on youtube");
             return;
         }
 
         try {
-            String resp = get.getResponseBodyAsString();
+            String resp = IOUtils.toString(get.getResponseBodyAsStream(), "utf-8");
             if(resp == null) {
-                System.out.println("Couldn't get detail at " + infoUrl);
+                logger.info("Couldn't get detail at " + infoUrl);
                 denySong(sender, "I couldn't find info about that video on youtube");
 
                 return;
@@ -470,7 +470,7 @@ public class DjService {
             updatePlayedSongsFile();
 
         } catch (IOException e) {
-            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+            logger.error("Problem with youtube request \"" + youtubeId + "\"", e);
             return;
         }
     }
@@ -482,7 +482,7 @@ public class DjService {
                 volume = vol;
             }
         } catch (NumberFormatException e) {
-            System.out.println("Not a number: \""+ trim +"\"");
+            logger.error("Not a number: \""+ trim +"\"");
         }
     }
 
@@ -549,30 +549,19 @@ public class DjService {
         return songList.size() == 0 && secondarySongList.size() == 0;
     }
 
-    public SongEntry startCurrentSong() {
-        System.out.println("startCurrentSong");
+    public synchronized SongEntry startCurrentSong() {
         if(currentSong != null) {
+            logger.info("I was asked for the current song; responding that it is id: " + currentSong.getRequestId() + " (no changes)");
             return currentSong;
         }
-        updateQueuesForLeavers();
-        if(songList.size() == 0) {
-            if(secondarySongList.size() == 0) {
-                return null;
-            }
-            currentSong = secondarySongList.remove(0);
-        } else {
-            currentSong = songList.remove(0);
-        }
-        return currentSong;
+        return nextSong();
     }
 
-    public SongEntry nextSong() {
-        System.out.println("nextSong");
-
+    public synchronized SongEntry nextSong() {
         updateQueuesForLeavers();
-
         boolean playingSecondary = false;
         SongEntry song;
+        String secondaryReport = "";
         //if the main queue is empty, pull from secondary
         if(songList.size() == 0) {
             if(secondarySongList.size() == 0) {
@@ -580,15 +569,9 @@ public class DjService {
                 return null;
             }
             song = secondarySongList.remove(0);
-            playingSecondary = true;
-            System.out.println("Playing secondary song \"" + song.getTitle() + "\"");
+            secondaryReport = " (from secondary queue)";
         } else {
             song = songList.remove(0);
-        }
-
-        String secondaryReport = "";
-        if (playingSecondary) {
-            secondaryReport = " (from secondary queue)";
         }
 
         if(conf.isShowUpNextMessages()) {
@@ -600,7 +583,7 @@ public class DjService {
         try {
             updatePlayedSongsFile();
         } catch (IOException e) {
-            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+            logger.error("Couldn't update playedSongs file", e);
         }
 
         return song;
@@ -622,7 +605,7 @@ public class DjService {
         return songToSkip;
     }
 
-    public DjState getStateRepresentation() {
+    public synchronized DjState getStateRepresentation() {
         DjState state = new DjState(songList, secondarySongList, songHistory, currentSong, volume, nextRequestId, dropboxLink, songToSkip, irc.opUsernames);
         return state;
     }
