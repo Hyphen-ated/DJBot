@@ -85,7 +85,7 @@ function nextSong(skip) {
     })
 }
 
-function tryFirstSong() {
+function loadCurrentSong() {
     $.ajax({
         dataType: 'json',
         url: urlPrefix + '/djbot/current?callback=?',
@@ -105,7 +105,7 @@ function update() {
     var player = document.getElementById('musicPlayer');
 
     if(justStarted) {
-        tryFirstSong();
+        loadCurrentSong();
     }
 
     //are we sitting at the end of a video and it's time to load the next?
@@ -121,9 +121,9 @@ function update() {
                 if(data) {
                     var player = document.getElementById('musicPlayer');
                     player.setVolume(data.volume);
-                    if(data.skipid == currentlyPlayingRequestId) {
+                    if(data.currentSongId !== 0 && currentSongId !== currentlyPlayingRequestId) {
                         player.pauseVideo();
-                        tryFirstSong();
+                        loadCurrentSong();
                     }
                 }
             }

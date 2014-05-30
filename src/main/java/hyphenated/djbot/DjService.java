@@ -41,9 +41,6 @@ public class DjService {
     private volatile int volume = 30;
     private volatile int nextRequestId;
 
-    private volatile int songToSkip = 0;
-
-
     //the following things should not change after initialization
     private final String streamer;
     private final String dropboxLink;
@@ -164,7 +161,6 @@ public class DjService {
         }
         removeSongFromList(songList, skipId, sender);
         removeSongFromList(secondarySongList, skipId, sender);
-        songToSkip = skipId;
 
         try {
             updatePlayedSongsFile();
@@ -599,12 +595,8 @@ public class DjService {
         return volume;
     }
 
-    public int getSongToSkip() {
-        return songToSkip;
-    }
-
     public synchronized DjState getStateRepresentation() {
-        DjState state = new DjState(songList, secondarySongList, songHistory, currentSong, volume, nextRequestId, dropboxLink, songToSkip, irc.opUsernames);
+        DjState state = new DjState(songList, secondarySongList, songHistory, currentSong, volume, nextRequestId, dropboxLink, irc.opUsernames);
         return state;
     }
 }

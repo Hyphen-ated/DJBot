@@ -16,14 +16,13 @@ public class DjState {
     volatile int nextRequestId;
     String dropboxLink;
 
-    volatile int songToSkip = 0;
     HashSet<String> opUsernames = new HashSet<>();
 
     public DjState() {
 
     }
 
-    public DjState(ArrayList<SongEntry> songList, ArrayList<SongEntry> secondarySongList, ArrayList<SongEntry> songHistory, SongEntry currentSong, int volume, int nextRequestId, String dropboxLink, int songToSkip, HashSet<String> opUsernames) {
+    public DjState(ArrayList<SongEntry> songList, ArrayList<SongEntry> secondarySongList, ArrayList<SongEntry> songHistory, SongEntry currentSong, int volume, int nextRequestId, String dropboxLink, HashSet<String> opUsernames) {
         this.songList = songList;
         this.secondarySongList = secondarySongList;
         this.songHistory = songHistory;
@@ -31,7 +30,6 @@ public class DjState {
         this.volume = volume;
         this.nextRequestId = nextRequestId;
         this.dropboxLink = dropboxLink;
-        this.songToSkip = songToSkip;
         this.opUsernames = opUsernames;
     }
 
@@ -89,14 +87,6 @@ public class DjState {
 
     public void setDropboxLink(String dropboxLink) {
         this.dropboxLink = dropboxLink;
-    }
-
-    public int getSongToSkip() {
-        return songToSkip;
-    }
-
-    public void setSongToSkip(int songToSkip) {
-        this.songToSkip = songToSkip;
     }
 
     public HashSet<String> getOpUsernames() {
