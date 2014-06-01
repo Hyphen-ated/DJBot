@@ -419,7 +419,7 @@ public class DjService {
                 return;
             }
         } catch (IOException e) {
-            logger.info("Couldn't get info from youtube api", e);
+            logger.warn("Couldn't get info from youtube api", e);
             denySong(sender, "I couldn't find info about that video on youtube");
             return;
         }
@@ -496,7 +496,7 @@ public class DjService {
 
             ObjectMapper mapper = new ObjectMapper();
 
-            if(currentSong == null && conf.isShowUpNextMessages()) {
+            if(! (currentSong == null && conf.isShowUpNextMessages())) {
                 //don't show this message when there's no song playing, because we're immediately going to show an "up next" message and it makes this one redundant
                 irc.message(sender + ": added \"" + title + "\" to queue. id: " + nextRequestId);
             }
