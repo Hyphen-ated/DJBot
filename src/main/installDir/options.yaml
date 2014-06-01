@@ -46,7 +46,8 @@ blacklistedYoutubeIds: []
 # how many previous songs to show on the songlist page
 songlistHistoryLength: 10
 
-
+# starting volume, 0-100
+defaultVolume: 50
 
 logging:
 

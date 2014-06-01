@@ -40,7 +40,7 @@ public class DjService {
 
     private volatile ArrayList<SongEntry> lastPlayedSongs = new ArrayList<>();
 
-    private volatile int volume = 30;
+    private volatile int volume;
     private volatile int nextRequestId;
 
     //the following things should not change after initialization
@@ -52,7 +52,9 @@ public class DjService {
     public DjService(DjConfiguration newConf, DjIrcBot irc) {
         this.conf = newConf;
         this.streamer = conf.getChannel();
+        this.volume = conf.getDefaultVolume();
         this.irc = irc;
+
 
         List<String> history = null;
         try {
@@ -185,22 +187,38 @@ public class DjService {
 
 
     public void irc_volume(String sender, String newVolStr) {
-        if(!irc.isMod(sender)) {
-            irc.message("Volume is for mods only");
+        if(StringUtils.isEmpty(newVolStr)) {
+            irc.message(sender + ": current volume is " + volume);
             return;
         }
-        try {
-            int newVolume = Integer.parseInt(newVolStr);
-            if(newVolume < 1) {
-                newVolume = 1;
-            } else if (newVolume > 100) {
-                newVolume = 100;
-            }
-            irc.message( sender + ": volume changed from " + volume + " to " + newVolume);
-            volume = newVolume;
-        } catch (NumberFormatException e) {
-            irc.message( sender + ": volume must be between 1 and 100");
+
+        if(!irc.isMod(sender)) {
+            irc.message(sender + ": changing volume is for mods only");
+            return;
         }
+
+        int newVolume;
+        if("up".equalsIgnoreCase(newVolStr)) {
+            newVolume = volume + 10;
+        } else if ("down".equalsIgnoreCase(newVolStr)) {
+            newVolume = volume - 10;
+        } else {
+            try {
+                newVolume = Integer.parseInt(newVolStr);
+            } catch (NumberFormatException e) {
+                irc.message( sender + ": volume must be 'up', 'down', or a number between 1 and 100");
+                return;
+            }
+        }
+
+        if (newVolume < 1) {
+            newVolume = 1;
+        } else if (newVolume > 100) {
+            newVolume = 100;
+        }
+        irc.message(sender + ": volume changed from " + volume + " to " + newVolume);
+        volume = newVolume;
+
     }
 
     public void irc_songs(String sender) {
