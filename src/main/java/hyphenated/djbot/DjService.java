@@ -459,7 +459,7 @@ public class DjService {
             JSONObject status = data.optJSONObject("status");
             String restrictionReason = null;
             if(status != null) {
-                restrictionReason = status.getString("reason");
+                restrictionReason = status.optString("reason");
             }
 
             if("requesterRegion".equals(restrictionReason)) {

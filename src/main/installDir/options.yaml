@@ -62,10 +62,10 @@ logging:
         # When the log file rotates, the archived log will be renamed to this and gzipped. The
         # %d is replaced with the previous day (yyyy-MM-dd). Custom rolling windows can be created
         # by passing a SimpleDateFormat-compatible format as an argument: "%d{yyyy-MM-dd-hh}".
-        archivedLogFilenamePattern: ./logs/djbot-%d.log.gz
+        archivedLogFilenamePattern: ./logs/djbot-%d.txt
 
         # The number of archived files to keep.
-        archivedFileCount: 50
+        archivedFileCount: 5
 
         # The timezone used to format dates
         timeZone: UTC
