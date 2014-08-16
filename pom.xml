@@ -6,7 +6,7 @@
     <groupId>hyphenated.djbot</groupId>
     <artifactId>djbot</artifactId>
     <packaging>jar</packaging>
-    <version>0.1.3</version>
+    <version>0.1.4</version>
     <name>djbot</name>
 
     <properties>
