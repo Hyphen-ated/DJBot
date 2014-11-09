@@ -1,5 +1,7 @@
 DJBot is an irc bot for twitch that lets viewers request songs. It's open-source and licensed under the GPL! Pull requests are accepted!
 
+Download the latest version here: https://github.com/Hyphen-ated/DJBot/releases
+
 Unlike many other popular twitch irc bots, you have to run the bot server yourself on your computer. (because I'm not running one for you)
 Also unlike many other bots, DJBot is not intended to be a full-featured administration bot. It's for songrequests and that's it.
 
@@ -19,6 +21,8 @@ Now set "channel" to your twitch streaming account where you want the djbot to j
 
 To run DJBot, you need java installed. If you're not sure whether you have java, you probably don't; go install it.
 Run startServer.bat to run the DJBot server.
+
+If it launches an archiving program instead of the djbot, it means your .jar extension needs to be associated with javaw.exe. Try using this utility to restore it: http://johann.loefflmann.net/en/software/jarfix/index.html (or if you don't trust this random program, set it yourself in windows)
 
 Once you have it running and there are no errors, go to http://localhost:8080/djbot/ui/ in your web browser to get the music player.
 Now you're good to go, people can use !songrequest <youtube url> in your chat to get songs playing
