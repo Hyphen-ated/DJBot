@@ -6,7 +6,7 @@
     <groupId>hyphenated.djbot</groupId>
     <artifactId>djbot</artifactId>
     <packaging>jar</packaging>
-    <version>0.1.4</version>
+    <version>0.1.5</version>
     <name>djbot</name>
 
     <properties>
@@ -84,15 +84,15 @@
                     <target>1.7</target>
                 </configuration>
             </plugin>
-                <plugin>
-                    <artifactId>maven-assembly-plugin</artifactId>
-                    <version>2.4</version>
-                    <configuration>
-                        <descriptor>src/assembly/dist.xml</descriptor>
-                        <finalName>djbot-${project.version}</finalName>
-                        <appendAssemblyId>false</appendAssemblyId>
-                    </configuration>
-                </plugin>
+            <plugin>
+                <artifactId>maven-assembly-plugin</artifactId>
+                <version>2.4</version>
+                <configuration>
+                    <descriptor>src/assembly/dist.xml</descriptor>
+                    <finalName>djbot-${project.version}</finalName>
+                    <appendAssemblyId>false</appendAssemblyId>
+                </configuration>
+            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
