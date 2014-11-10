@@ -36,22 +36,46 @@ public class DjIrcBot extends PircBot {
 
 
     public void startup() {
-        if(dj == null) {
-            throw new IllegalStateException("DjIrcBat.startup() must be called after setDjService");
-        }
-        try {
-            this.connect("irc.twitch.tv", 6667, conf.getTwitchAccessToken());
-        } catch (Exception e) {
-            throw new RuntimeException("Couldn't connect to twitch irc", e);
-        }
-
-        this.joinChannel(channel);
+        tryConnect();
     }
 
     public void setDjService(DjService dj) {
         this.dj = dj;
     }
 
+
+    private void tryConnect() {
+
+        if(dj == null) {
+            throw new IllegalStateException("DjIrcBot.startup() must be called after setDjService");
+        }
+        while(!isConnected()) {
+            try {
+                this.connect("irc.twitch.tv", 6667, conf.getTwitchAccessToken());
+                this.joinChannel(channel);
+            } catch (Exception e) {
+                dj.logger.error("Couldn't connect to twitch irc", e);
+                //wait before trying again
+                try {
+                    Thread.sleep(1000L);
+                } catch (InterruptedException e1) {
+                    //do nothing
+                }
+            }
+        }
+    }
+
+
+    @Override
+    protected void onDisconnect() {
+        dj.logger.info("onDisconnect fired");
+        try {
+            Thread.sleep(1000L);
+        } catch (InterruptedException e) {
+            //do nothing
+        }
+        tryConnect();
+    }
 
     @Override
     protected void onUserMode(String targetNick, String sourceNick, String sourceLogin, String sourceHostname, String mode) {

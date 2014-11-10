@@ -263,8 +263,8 @@ public class DjService {
         }
 
         //we support standard youtube links like https://www.youtube.com/watch?v=<youtubeid>
-        String vParamId = findYoutubeIdAfterMarker(requestStr, "?v=");
-        if(requestStr.contains("youtube.com") && vParamId != null) {
+        String vParamId = findYoutubeIdAfterMarker(requestStr, "v=");
+        if(vParamId != null) {
             doYoutubeRequest(sender, vParamId);
             return;
         }
