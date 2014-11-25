@@ -7,7 +7,11 @@ import org.apache.commons.httpclient.methods.GetMethod;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringUtils;
+import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.map.ObjectMapper;
+import org.codehaus.jackson.node.ArrayNode;
+import org.codehaus.jackson.node.JsonNodeFactory;
+import org.codehaus.jackson.node.ObjectNode;
 import org.joda.time.DateTime;
 import org.json.JSONObject;
 import org.slf4j.Logger;
@@ -125,7 +129,8 @@ public class DjService {
     private String determineDropboxLink(DjConfiguration conf) {
         DbxClient client = getDbxClient();
         try {
-            return client.createShareableUrl(dboxFilePath);
+            DbxUrlWithExpiration url = client.createTemporaryDirectUrl(dboxFilePath);
+            return url.url;
         } catch (DbxException e) {
             logger.error("Can't create dropbox link", e);
             return null;
@@ -356,6 +361,60 @@ public class DjService {
         } catch (DbxException e) {
             logger.error("Problem talking to dropbox to update the songlist", e);
         }
+    }
+
+    private String buildReportJSON() {
+        int runningSeconds = 0;
+
+        ObjectNode reportJs = new ObjectNode(JsonNodeFactory.instance);
+        if(currentSong != null) {
+            runningSeconds += currentSong.getDurationSeconds();
+            reportJs.put("nowPlaying", songEntryToReportJSON(currentSong, -1));
+        }
+
+        if(songList.size() > 0) {
+            ArrayNode mainList = new ArrayNode(JsonNodeFactory.instance);
+            for(SongEntry song : songList) {
+                mainList.add(songEntryToReportJSON(song, runningSeconds));
+                runningSeconds += song.getDurationSeconds();
+            }
+            reportJs.put("mainList", mainList);
+        }
+
+
+        if(secondarySongList.size() > 0) {
+            ArrayNode secondaryList = new ArrayNode(JsonNodeFactory.instance);
+            for(SongEntry song : songList) {
+                secondaryList.add(songEntryToReportJSON(song, runningSeconds));
+                runningSeconds += song.getDurationSeconds();
+            }
+            reportJs.put("secondaryList", secondaryList);
+        }
+
+        runningSeconds = 0;
+        if(lastPlayedSongs.size() > 0) {
+            ArrayNode previouslyPlayed = new ArrayNode(JsonNodeFactory.instance);
+            for(int i = lastPlayedSongs.size()-1; i >=0; --i) {
+                SongEntry song = lastPlayedSongs.get(i);
+                previouslyPlayed.add(songEntryToReportJSON(song, runningSeconds));
+                runningSeconds += song.getDurationSeconds();
+            }
+            reportJs.put("previouslyPlayed", previouslyPlayed);
+        }
+
+
+        return reportJs.toString();
+
+    }
+
+    private ObjectNode songEntryToReportJSON(SongEntry song, int secondsFromNow) {
+
+        ObjectMapper mapper = new ObjectMapper();
+        JsonNode js = mapper.valueToTree(song);
+        ObjectNode obJs = (ObjectNode) js;
+
+        obJs.put("time", "about " +  secondsFromNow / 60 + " minutes");
+        return obJs;
     }
 
 
