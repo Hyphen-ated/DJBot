@@ -17,3 +17,6 @@ target/
 
 #secrets
 testingOptions.yaml
+
+queue.json
+unplayedSongs.json
