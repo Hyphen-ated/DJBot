@@ -129,8 +129,8 @@ public class DjService {
     private String determineDropboxLink(DjConfiguration conf) {
         DbxClient client = getDbxClient();
         try {
-            DbxUrlWithExpiration url = client.createTemporaryDirectUrl(dboxFilePath);
-            return url.url;
+            String url = client.createShareableUrl(dboxFilePath);
+            return url.replace("?dl=0", "?raw=1");
         } catch (DbxException e) {
             logger.error("Can't create dropbox link", e);
             return null;
