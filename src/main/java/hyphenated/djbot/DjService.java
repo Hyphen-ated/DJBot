@@ -13,6 +13,7 @@ import org.codehaus.jackson.node.ArrayNode;
 import org.codehaus.jackson.node.JsonNodeFactory;
 import org.codehaus.jackson.node.ObjectNode;
 import org.joda.time.DateTime;
+import org.json.JSONArray;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -281,6 +282,14 @@ public class DjService {
             return;
         }
 
+        //we support PLAYLISTS like https://www.youtube.com/playlist?list=<playlistid>
+        String listPathVar = "?list=";
+        int listPathIndex = requestStr.lastIndexOf(listPathVar);
+        if(listPathIndex > -1) {
+            String listPathId = requestStr.substring(listPathIndex + listPathVar.length());
+            doYoutubeListRequest(sender, listPathId);
+            return;
+        }
         irc.message(sender + ": couldn't find a youtube video id in your request");
 
     }
@@ -443,7 +452,7 @@ public class DjService {
             for(SongEntry song : secondarySongList) {
                 appendSongReportEntry(sb, song);
                 appendPlaysNextInfo(sb, runningSeconds);
-                sb.append(" minutes (if nothing is requested)\n\n" );
+                sb.append(" (if nothing is requested)\n\n" );
                 runningSeconds += song.getDurationSeconds();
             }
         }
@@ -571,26 +580,146 @@ public class DjService {
                 return;
             }
 
-            ObjectMapper mapper = new ObjectMapper();
-
             if(! (currentSong == null && conf.isShowUpNextMessages())) {
                 //don't show this message when there's no song playing, because we're immediately going to show an "up next" message and it makes this one redundant
                 irc.message(sender + ": added \"" + title + "\" to queue. id: " + nextRequestId);
             }
 
 
-            SongEntry newSong = new SongEntry(title, youtubeId, nextRequestId, sender, new Date().getTime(), durationSeconds);
-            ++nextRequestId;
-            songList.add(newSong);
-
-            String songJson = mapper.writeValueAsString(newSong);
-            FileUtils.writeStringToFile(new File(this.queueHistoryFilePath), songJson + "\n", "utf-8", true);
-
-            updatePlayedSongsFile();
+            SongEntry newSong = new SongEntry(title, youtubeId, nextRequestId, sender, new Date().getTime(), durationSeconds, false);
+            addSongToQueue(newSong);
 
         } catch (IOException e) {
             logger.error("Problem with youtube request \"" + youtubeId + "\"", e);
             return;
+        }
+    }
+
+    private void addSongToQueue(SongEntry newSong) throws IOException {
+        ObjectMapper mapper = new ObjectMapper();
+        ++nextRequestId;
+        if(newSong.isBackup()) {
+            secondarySongList.add(newSong);
+        } else {
+            songList.add(newSong);
+        }
+
+
+        String songJson = mapper.writeValueAsString(newSong);
+        FileUtils.writeStringToFile(new File(this.queueHistoryFilePath), songJson + "\n", "utf-8", true);
+
+        updatePlayedSongsFile();
+    }
+
+    private void doYoutubeListRequest(String sender, String listPathId) {
+        if(!sender.equals(streamer)) {
+            denySong(sender, "youtube playlists are only for the streamer to request");
+            return;
+        }
+
+        String infoUrl = "http://gdata.youtube.com/feeds/api/playlists/" + listPathId + "?v=2&alt=jsonc";
+        GetMethod get = new GetMethod(infoUrl);
+        HttpClient client = new HttpClient();
+        try {
+            int errcode = client.executeMethod(get);
+            if(errcode != 200) {
+                logger.info("Song request error: got code " + errcode + " from " + infoUrl);
+                denySong(sender, "I couldn't find info about that playlist on youtube");
+
+                return;
+            }
+        } catch (IOException e) {
+            logger.warn("Couldn't get info from youtube api", e);
+            denySong(sender, "I couldn't find info about that playlist on youtube");
+            return;
+        }
+
+        try {
+            String resp = IOUtils.toString(get.getResponseBodyAsStream(), "utf-8");
+            if(resp == null) {
+                logger.info("Couldn't get detail at " + infoUrl);
+                denySong(sender, "I couldn't find info about that playlist on youtube");
+
+                return;
+            }
+            JSONObject obj = new JSONObject(resp);
+            JSONObject data = obj.getJSONObject("data");
+            JSONArray items = data.getJSONArray("items");
+            int songsAdded = 0;
+            irc.message("Adding playlist...");
+            for(int i = 0; i < items.length(); ++i) {
+                JSONObject item = items.getJSONObject(i);
+                JSONObject video = item.getJSONObject("video");
+                String videoId = video.getString("id");
+                songsAdded += addSonglistSong(sender, videoId);
+            }
+            irc.message("Added " + songsAdded + " songs to secondary queue");
+
+        } catch (IOException e) {
+            logger.error("Problem with youtube playlist request \"" + listPathId + "\"", e);
+            return;
+        }
+
+    }
+
+    //returns the number of songs added: 0 or 1
+    //TODO: refactor this so there isn't so much duplication with doYoutubeRequest
+    private int addSonglistSong(String sender, String videoId) {
+        String infoUrl = "http://gdata.youtube.com/feeds/api/videos/" + videoId + "?v=2&alt=jsonc&restriction=" + conf.getUserCountryCode();
+        GetMethod get = new GetMethod(infoUrl);
+        HttpClient client = new HttpClient();
+        try {
+            int errcode = client.executeMethod(get);
+            if(errcode != 200) {
+                logger.info("Song request error: got code " + errcode + " from " + infoUrl);
+                return 0;
+            }
+        } catch (IOException e) {
+            logger.warn("Couldn't get info from youtube api", e);
+            return 0;
+        }
+
+        try {
+            String resp = IOUtils.toString(get.getResponseBodyAsStream(), "utf-8");
+            if(resp == null) {
+                logger.info("Couldn't get detail at " + infoUrl);
+
+                return 0;
+            }
+            JSONObject obj = new JSONObject(resp);
+            JSONObject data = obj.getJSONObject("data");
+            String title = data.getString("title");
+            int durationSeconds = data.getInt("duration");
+            JSONObject accessControl = data.getJSONObject("accessControl");
+            String embedAllowed = accessControl.getString("embed");
+            JSONObject status = data.optJSONObject("status");
+            String restrictionReason = null;
+            if(status != null) {
+                restrictionReason = status.optString("reason");
+            }
+
+            if("requesterRegion".equals(restrictionReason)) {
+                logger.info("Video " + videoId + " can't be played in streamer's country");
+                return 0;
+            }
+
+            if("private".equals(restrictionReason)) {
+                logger.info("Video " + videoId + " is private");
+                return 0;
+            }
+
+            if(!("allowed".equals(embedAllowed))) {
+                logger.info("Video " + videoId + " can't be embedded");
+                return 0;
+            }
+
+            SongEntry newSong = new SongEntry(title, videoId, nextRequestId, sender, new Date().getTime(), durationSeconds, true);
+            addSongToQueue(newSong);
+            return 1;
+
+        } catch (IOException e) {
+            logger.info("Problem getting info for video " + videoId);
+            return 0;
         }
     }
 

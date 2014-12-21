@@ -12,18 +12,20 @@ public class SongEntry {
     private String user;
     private long requestTime;
     private int durationSeconds;
+    private boolean backup;
 
     public SongEntry() {
 
     }
 
-    public SongEntry(String title, String videoId, int requestId, String user, long requestTime, int durationSeconds) {
+    public SongEntry(String title, String videoId, int requestId, String user, long requestTime, int durationSeconds, boolean backup) {
         this.title = title;
         this.videoId = videoId;
         this.requestId = requestId;
         this.user = user;
         this.requestTime = requestTime;
         this.durationSeconds = durationSeconds;
+        this.backup = backup;
     }
 
     public String getTitle() {
@@ -74,8 +76,13 @@ public class SongEntry {
         this.durationSeconds = durationSeconds;
     }
 
+    public boolean isBackup() {
+        return backup;
+    }
 
-
+    public void setBackup(boolean backup) {
+        this.backup = backup;
+    }
 
     @Override
     public boolean equals(Object o) {
