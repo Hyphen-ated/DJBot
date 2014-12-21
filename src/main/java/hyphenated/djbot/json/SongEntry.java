@@ -13,12 +13,13 @@ public class SongEntry {
     private long requestTime;
     private int durationSeconds;
     private boolean backup;
+    private int startSeconds;
 
     public SongEntry() {
 
     }
 
-    public SongEntry(String title, String videoId, int requestId, String user, long requestTime, int durationSeconds, boolean backup) {
+    public SongEntry(String title, String videoId, int requestId, String user, long requestTime, int durationSeconds, boolean backup, int startSeconds) {
         this.title = title;
         this.videoId = videoId;
         this.requestId = requestId;
@@ -26,50 +27,51 @@ public class SongEntry {
         this.requestTime = requestTime;
         this.durationSeconds = durationSeconds;
         this.backup = backup;
+        this.startSeconds = startSeconds;
     }
 
     public String getTitle() {
         return title;
     }
 
-    public String getVideoId() {
-        return videoId;
-    }
-
-    public int getRequestId() {
-        return requestId;
-    }
-
-    public String getUser() {
-        return user;
-    }
-
-    public long getRequestTime() {
-        return requestTime;
-    }
-
-    public int getDurationSeconds() {
-        return durationSeconds;
-    }
-
     public void setTitle(String title) {
         this.title = title;
+    }
+
+    public String getVideoId() {
+        return videoId;
     }
 
     public void setVideoId(String videoId) {
         this.videoId = videoId;
     }
 
+    public int getRequestId() {
+        return requestId;
+    }
+
     public void setRequestId(int requestId) {
         this.requestId = requestId;
+    }
+
+    public String getUser() {
+        return user;
     }
 
     public void setUser(String user) {
         this.user = user;
     }
 
+    public long getRequestTime() {
+        return requestTime;
+    }
+
     public void setRequestTime(long requestTime) {
         this.requestTime = requestTime;
+    }
+
+    public int getDurationSeconds() {
+        return durationSeconds;
     }
 
     public void setDurationSeconds(int durationSeconds) {
@@ -82,6 +84,14 @@ public class SongEntry {
 
     public void setBackup(boolean backup) {
         this.backup = backup;
+    }
+
+    public int getStartSeconds() {
+        return startSeconds;
+    }
+
+    public void setStartSeconds(int startSeconds) {
+        this.startSeconds = startSeconds;
     }
 
     @Override

@@ -16,11 +16,11 @@ $(document).keydown(function(event){
     }
 });
 
-function loadSong(youtubeId, requestId) {
+function loadSong(youtubeId, requestId, startTime) {
     var params = { allowScriptAccess: "always"};
     //switch to this one for no player controls in the embed
     //swfobject.embedSWF("https://www.youtube.com/apiplayer?video_id="+youtubeId+"&version=3&feature=player_embedded&autoplay=1&controls=1&enablejsapi=1&modestbranding=0&rel=0&showinfo=1&autohide=0&color=white&playerapiid=musicPlayer&iv_load_policy=3", "musicPlayer", "600", "400", "8", null, null, params);
-    swfobject.embedSWF("https://www.youtube.com/v/"+youtubeId+"?autoplay=1&controls=1&enablejsapi=0&iv_load_policy=3&playerapiid=musicPlayer", "musicPlayer", "600", "400", "8", null, null, params, null);
+    swfobject.embedSWF("https://www.youtube.com/v/"+youtubeId+"?autoplay=1&start="+startTime+"&controls=1&enablejsapi=0&iv_load_policy=3&playerapiid=musicPlayer", "musicPlayer", "600", "400", "8", null, null, params, null);
     playingVideo = true;
     currentlyPlayingRequestId = requestId;
 }
@@ -73,7 +73,7 @@ function nextSong(skip) {
             if( data && data.status === 'success') {
                 var newSong = data.song;
                 if(newSong && newSong.requestId !== currentlyPlayingRequestId) {
-                    loadSong(newSong.videoId, newSong.requestId);
+                    loadSong(newSong.videoId, newSong.requestId, data.startSeconds);
                     document.getElementById('title').innerHTML=newSong.title;
                     document.getElementById('requester').innerHTML=newSong.user;
                     itWorked = true;
@@ -97,7 +97,7 @@ function loadCurrentSong() {
         url: urlPrefix + '/djbot/current?callback=?',
         success: function(data) {
             if(data) {
-                loadSong(data.videoId, data.requestId);
+                loadSong(data.videoId, data.requestId, data.startSeconds);
                 document.getElementById('title').innerHTML=data.title;
                 document.getElementById('requester').innerHTML=data.user;
                 justStarted = false;

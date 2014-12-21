@@ -96,7 +96,11 @@ public class DjService {
             }
 
             if(unplayedSongs.contains(entry.getRequestId())) {
-                songList.add(entry);
+                if(entry.isBackup()) {
+                    secondarySongList.add(entry);
+                } else {
+                    songList.add(entry);
+                }
             }
             //todo: configure 2 weeks here. or maybe have no cutoff? the point is so when the file gets huge we don't keep operating on the huge thing all day.
             long historyCutoff = DateTime.now().minusWeeks(2).toDate().getTime();
@@ -254,31 +258,35 @@ public class DjService {
 
     //given a string that a user songrequested, try to figure out what it is a link to and do the work to handle it
     public synchronized void irc_songRequest(String sender, String requestStr) {
-        Matcher m = idPattern.matcher(requestStr);
+
+        int startSeconds = extractStartSecondsFromTimeParam(requestStr);
+
+        String possibleYoutubeId = requestStr.substring(0, 11);
+        Matcher m = idPattern.matcher(possibleYoutubeId);
         //we support !songrequest <youtubeid>
         if (m.matches()) {
-            doYoutubeRequest(sender, requestStr);
+            doYoutubeRequest(sender, possibleYoutubeId, startSeconds);
             return;
         }
 
         //we support youtu.be/<youtubeid>
         String youtuBeId = findYoutubeIdAfterMarker(requestStr, "youtu.be/");
         if(youtuBeId != null) {
-            doYoutubeRequest(sender, youtuBeId);
+            doYoutubeRequest(sender, youtuBeId, startSeconds);
             return;
         }
 
         //we support standard youtube links like https://www.youtube.com/watch?v=<youtubeid>
         String vParamId = findYoutubeIdAfterMarker(requestStr, "v=");
         if(vParamId != null) {
-            doYoutubeRequest(sender, vParamId);
+            doYoutubeRequest(sender, vParamId, startSeconds);
             return;
         }
 
         //we support youtube links like https://www.youtube.com/v/<youtubeid>
         String vPathId = findYoutubeIdAfterMarker(requestStr, "/v/");
         if(requestStr.contains("youtube.com") && vPathId != null) {
-            doYoutubeRequest(sender, vPathId);
+            doYoutubeRequest(sender, vPathId, startSeconds);
             return;
         }
 
@@ -292,6 +300,53 @@ public class DjService {
         }
         irc.message(sender + ": couldn't find a youtube video id in your request");
 
+    }
+
+
+    private static final Pattern timePattern = Pattern.compile("(((\\d)+)m)?(((\\d)+)s)");
+
+    //given a request string, look for something like &t=1m22s in there, parse the time value, and return the number of seconds it represents
+    private int extractStartSecondsFromTimeParam(String requestStr) {
+        int paramIdx = requestStr.lastIndexOf("&t=");
+        if(paramIdx < 0) {
+            paramIdx = requestStr.lastIndexOf("#t=");
+        }
+        if(paramIdx < 0) {
+            return 0;
+        }
+        int startOfTimeIdx = paramIdx + 3;
+        int endOfTimeIdx;
+        for(endOfTimeIdx = startOfTimeIdx; endOfTimeIdx < requestStr.length(); ++endOfTimeIdx) {
+            char c = requestStr.charAt(endOfTimeIdx);
+            if(c != 'm' && c != 's' && !Character.isDigit(c)) {
+                break;
+            }
+        }
+
+        String timeStr = requestStr.substring(startOfTimeIdx, endOfTimeIdx);
+        logger.info("trying to parse " + timeStr + " as a time string");
+
+        Matcher matcher = timePattern.matcher(timeStr);
+        if(!matcher.matches()) {
+            return 0;
+        }
+        //minutes and seconds
+        String mStr = matcher.group(2);
+        String sStr = matcher.group(5);
+        int m, s;
+        try {
+            m = Integer.parseInt(mStr);
+        } catch (NumberFormatException e) {
+            m = 0;
+        }
+
+        try {
+            s = Integer.parseInt(sStr);
+        } catch (NumberFormatException e) {
+            s = 0;
+        }
+
+        return m * 60 + s;
     }
 
     //given a request string, look for a youtube id that directly follows the given marker at some point in the string
@@ -485,7 +540,7 @@ public class DjService {
         sb.append(", about ").append(runningSeconds / 60).append(" minutes");
     }
 
-    private void doYoutubeRequest(String sender, String youtubeId) {
+    private void doYoutubeRequest(String sender, String youtubeId, int startSeconds) {
         updateQueuesForLeavers();
 
         if(blacklistedYoutubeIds.contains(youtubeId)) {
@@ -550,7 +605,7 @@ public class DjService {
                 return;
             }
 
-            if(conf.getQueueSize() > 0 && songList.size() >= conf.getQueueSize()) {
+            if(!sender.equals(streamer) && conf.getQueueSize() > 0 && songList.size() >= conf.getQueueSize()) {
                 denySong(sender, "the queue is full at " + conf.getQueueSize());
                 return;
             }
@@ -586,7 +641,7 @@ public class DjService {
             }
 
 
-            SongEntry newSong = new SongEntry(title, youtubeId, nextRequestId, sender, new Date().getTime(), durationSeconds, false);
+            SongEntry newSong = new SongEntry(title, youtubeId, nextRequestId, sender, new Date().getTime(), durationSeconds, false, startSeconds);
             addSongToQueue(newSong);
 
         } catch (IOException e) {
@@ -713,7 +768,8 @@ public class DjService {
                 return 0;
             }
 
-            SongEntry newSong = new SongEntry(title, videoId, nextRequestId, sender, new Date().getTime(), durationSeconds, true);
+            boolean isBackupSong = true;
+            SongEntry newSong = new SongEntry(title, videoId, nextRequestId, sender, new Date().getTime(), durationSeconds, isBackupSong, 0);
             addSongToQueue(newSong);
             return 1;
 
