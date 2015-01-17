@@ -35,7 +35,7 @@ maxConsoleLines: 99999
 
 # two-letter country code for the country you're in ( find it on http://en.wikipedia.org/wiki/ISO_3166-1 )
 # this is so the bot can detect when a video will be blocked and give an error for the !songrequest, rather than the song being silently skipped
-userCountryCode: US
+userCountryCode: "US"
 
 # when a song is about to play, send an "up next" message in the chat
 showUpNextMessages: true
@@ -49,6 +49,8 @@ songlistHistoryLength: 10
 # starting volume, 0-100
 defaultVolume: 50
 
+#############################################################
+# stuff you don't need to care about
 logging:
 
     # The default level of all loggers. Can be OFF, ERROR, WARN, INFO, DEBUG, TRACE, or ALL.
