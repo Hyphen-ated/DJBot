@@ -6,10 +6,23 @@ import io.dropwizard.assets.AssetsBundle;
 import io.dropwizard.setup.Bootstrap;
 import io.dropwizard.setup.Environment;
 
+import java.io.File;
+import java.io.PrintStream;
+
 public class DjApplication extends Application<DjConfiguration> {
 
-    public static void main(String[] args) throws Exception {
-        new DjApplication().run(args);
+    public static void main(String[] args) {
+        try {
+            new DjApplication().run(args);
+        } catch (Exception e) {
+            try {
+                File file = new File("logs/errorFromMain.txt");
+                PrintStream ps = new PrintStream(file);
+                e.printStackTrace(ps);
+            } catch (Exception e2) {
+                e2.printStackTrace();
+            }
+        }
     }
 
     @Override
