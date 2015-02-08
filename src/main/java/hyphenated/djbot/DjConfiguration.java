@@ -6,6 +6,7 @@ import org.hibernate.validator.constraints.NotEmpty;
 
 import javax.validation.constraints.Min;
 import java.util.List;
+import java.util.Locale;
 
 
 public class DjConfiguration extends Configuration {
@@ -48,6 +49,8 @@ public class DjConfiguration extends Configuration {
         } else {
             this.channel = channel;
         }
+        //capital letters cause failure
+        this.channel = this.channel.toLowerCase(Locale.US);
     }
 
     public int getQueueSize() {

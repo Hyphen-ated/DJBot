@@ -68,7 +68,7 @@ public class DjIrcBot extends PircBot {
 
     @Override
     protected void onDisconnect() {
-        dj.logger.info("onDisconnect fired");
+        dj.logger.info("onDisconnect fired (if this message is spamming, doublecheck your botName and twitchAccessToken)");
         try {
             Thread.sleep(1000L);
         } catch (InterruptedException e) {

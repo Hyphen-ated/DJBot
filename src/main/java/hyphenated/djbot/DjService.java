@@ -135,6 +135,10 @@ public class DjService {
         DbxClient client = getDbxClient();
         try {
             String url = client.createShareableUrl(dboxFilePath);
+            if(url == null) {
+                //this can happen the first time the bot ever runs
+                return url;
+            }
             return url.replace("?dl=0", "?raw=1");
         } catch (DbxException e) {
             logger.error("Can't create dropbox link", e);
@@ -635,10 +639,11 @@ public class DjService {
                 return;
             }
 
-            if(! (currentSong == null && conf.isShowUpNextMessages())) {
-                //don't show this message when there's no song playing, because we're immediately going to show an "up next" message and it makes this one redundant
-                irc.message(sender + ": added \"" + title + "\" to queue. id: " + nextRequestId);
-            }
+            //this will cause a redundant looking double message if "up next" messages are enabled and there is no song playing.
+            //but that's better than the alternative of missing the message entirely if no songs are playing at all and the player is not open
+            //(which is a common scenario when someone first sets up their bot)
+            irc.message(sender + ": added \"" + title + "\" to queue. id: " + nextRequestId);
+
 
 
             SongEntry newSong = new SongEntry(title, youtubeId, nextRequestId, sender, new Date().getTime(), durationSeconds, false, startSeconds);
@@ -672,7 +677,7 @@ public class DjService {
             return;
         }
 
-        String infoUrl = "http://gdata.youtube.com/feeds/api/playlists/" + listPathId + "?v=2&alt=jsonc";
+        String infoUrl = "http://gdata.youtube.com/feeds/api/playlists/" + listPathId + "?v=2&alt=jsonc&max-results=50";
         GetMethod get = new GetMethod(infoUrl);
         HttpClient client = new HttpClient();
         try {
