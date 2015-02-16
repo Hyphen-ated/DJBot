@@ -871,6 +871,7 @@ public class DjService {
 
         if(currentSong != null) {
             lastPlayedSongs.add(currentSong);
+            songHistory.add(currentSong);
         }
 
         if(lastPlayedSongs.size() > conf.getSonglistHistoryLength()) {
