@@ -6,6 +6,7 @@ import org.joda.time.DateTime;
 
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Locale;
 
 
 public class DjIrcBot extends PircBot {
@@ -20,6 +21,7 @@ public class DjIrcBot extends PircBot {
     final String label_volume = "!volume";
     final String label_currentsong = "!currentsong";
     final String label_lastsong = "!lastsong";
+    final String label_nextsong = "!nextsong";
     final String label_songs = "!songs";
 
     public volatile HashSet<String> opUsernames = new HashSet<>();
@@ -135,29 +137,33 @@ public class DjIrcBot extends PircBot {
         }
 
         message = message.trim();
-        if (message.startsWith(label_songrequest)) {
+        String lowercaseMessage = message.toLowerCase(Locale.US);
+        if (lowercaseMessage.startsWith(label_songrequest)) {
             logMessage(sender, message);
             dj.irc_songRequest(sender, message.substring(label_songrequest.length()).trim());
-        } else if (message.startsWith(label_songlist)) {
+        } else if (lowercaseMessage.startsWith(label_songlist)) {
             logMessage(sender, message);
             dj.irc_songlist(sender);
-        } else if (message.startsWith(label_removesong)) {
+        } else if (lowercaseMessage.startsWith(label_removesong)) {
             logMessage(sender, message);
             dj.irc_removesong(sender, message.substring(label_removesong.length()).trim());
-        } else if (message.startsWith(label_skipsong)) {
+        } else if (lowercaseMessage.startsWith(label_skipsong)) {
             //skipsong is the same as removesong
             logMessage(sender, message);
             dj.irc_removesong(sender, message.substring(label_skipsong.length()).trim());
-        } else if (message.startsWith(label_volume)) {
+        } else if (lowercaseMessage.startsWith(label_volume)) {
             logMessage(sender, message);
             dj.irc_volume(sender, message.substring(label_volume.length()).trim());
-        } else if (message.startsWith(label_currentsong)) {
+        } else if (lowercaseMessage.startsWith(label_currentsong)) {
             logMessage(sender, message);
             dj.irc_currentsong(sender);
-        } else if (message.startsWith(label_lastsong)) {
+        } else if (lowercaseMessage.startsWith(label_lastsong)) {
             logMessage(sender, message);
             dj.irc_lastsong(sender);
-        } else if (message.startsWith(label_songs)) {
+        } else if (lowercaseMessage.startsWith(label_nextsong)) {
+            logMessage(sender, message);
+            dj.irc_nextsong(sender);
+        } else if (lowercaseMessage.startsWith(label_songs)) {
             logMessage(sender, message);
             dj.irc_songs(sender);
         }

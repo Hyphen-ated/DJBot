@@ -253,8 +253,23 @@ public class DjService {
             irc.message(sender + ": no song has finished playing yet");
             return;
         }
-        SongEntry lastSong = lastPlayedSongs.get(lastPlayedSongs.size()-1);
         irc.message( sender + ": Last song: \"" + currentSong.getTitle() + "\", url: " + currentSong.buildYoutubeUrl());
+    }
+
+    public synchronized void irc_nextsong(String sender) {
+        SongEntry nextSong;
+        if(songList.size() == 0) {
+            if(secondarySongList.size() == 0) {
+                irc.message(sender + ": there is no next song");
+                return;
+            }
+            nextSong = secondarySongList.get(0);
+        } else {
+            nextSong = songList.get(0);
+        }
+
+        irc.message(sender + ": Next song: \"" + nextSong.getTitle() + " \", url: " + currentSong.buildYoutubeUrl());
+        return;
     }
 
 
