@@ -211,11 +211,12 @@ public class DjService {
             return;
         }
 
+        int oldVolume = volume;
         int newVolume;
         if("up".equalsIgnoreCase(newVolStr)) {
-            newVolume = volume + 10;
+            newVolume = oldVolume + 10;
         } else if ("down".equalsIgnoreCase(newVolStr)) {
-            newVolume = volume - 10;
+            newVolume = oldVolume - 10;
         } else {
             try {
                 newVolume = Integer.parseInt(newVolStr);
@@ -227,12 +228,20 @@ public class DjService {
 
         if (newVolume < 1) {
             newVolume = 1;
+            if(oldVolume == newVolume) {
+                irc.message(sender + ": volume is already at 1, the minimum");
+                return;
+            }
         } else if (newVolume > 100) {
             newVolume = 100;
+            if(oldVolume == newVolume) {
+                irc.message(sender + ": volume is already at 100, the maximum");
+                return;
+            }
         }
-        irc.message(sender + ": volume changed from " + volume + " to " + newVolume);
-        volume = newVolume;
 
+        irc.message(sender + ": volume changed from " + oldVolume + " to " + newVolume);
+        volume = newVolume;
     }
 
     public void irc_songs(String sender) {
