@@ -1,4 +1,4 @@
-urlPrefix = "http://localhost:8080";
+urlPrefix = window.location.origin
 playingVideo = false;
 currentlyPlayingRequestId = 0;
 waitingOnNext = false;

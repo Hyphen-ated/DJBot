@@ -75,10 +75,17 @@ logging:
       - type: console
 
 
-# this is to turn off the verbose requestLog entries from jetty
 server:
+    # this is to turn off the verbose requestLog entries from jetty
     requestLog:
         appenders:
             - type: console
               threshold: WARN
+    # if you want to change what port it runs on, you can do that here
+    applicationConnectors:
+        - type: http
+          port: 8080
+    adminConnectors:
+        - type: http
+          port: 8081
 
