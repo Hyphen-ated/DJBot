@@ -1,0 +1,16 @@
+#userstuff {
+    float:top;
+}
+
+#user {
+     float:left;
+     padding-left: 10px;
+}
+
+#login {
+     float:left;
+}
+
+#musicHolder {
+    clear:both;
+}

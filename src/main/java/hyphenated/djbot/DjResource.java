@@ -2,22 +2,29 @@ package hyphenated.djbot;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import hyphenated.djbot.json.LoginInfo;
+import hyphenated.djbot.auth.User;
 import hyphenated.djbot.json.CheckResponse;
 import hyphenated.djbot.json.NextResponse;
 import hyphenated.djbot.json.SongEntry;
-import org.apache.commons.lang.StringUtils;
+import io.dropwizard.auth.Auth;
+import org.apache.commons.lang3.StringUtils;
 
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
+import javax.ws.rs.*;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
 
 @Path("djbot")
 public class DjResource {
 
     private DjService dj;
+    private boolean publicMode;
+    //use user tokens on auth-required endpoints to prevent csrf attack
+    private Map<String, User> tokenMap = new HashMap<>();
 
     public DjResource(DjConfiguration conf) {
+        publicMode = conf.isDjbotPublic();
         DjIrcBot irc = new DjIrcBot(conf);
         dj = new DjService(conf, irc);
         irc.setDjService(dj);
@@ -51,6 +58,35 @@ public class DjResource {
         }
     }
 
+    private void removeTokenEntry(User user) {
+        String tokenToRemove = null;
+        for (Map.Entry<String, User> entry : tokenMap.entrySet()) {
+            if(entry.getValue().getName().equals(user.getName())) {
+                tokenToRemove = entry.getKey();
+                break;
+            }
+        }
+        if(tokenToRemove != null) {
+            tokenMap.remove(tokenToRemove);
+        }
+
+    }
+
+    @GET
+    @Path("/login")
+    @Produces("application/json")
+    public String webLogin(@Auth User user, @QueryParam("callback") String callback) {
+        if(user != null) {
+            removeTokenEntry(user);
+            String userToken = UUID.randomUUID().toString();
+            tokenMap.put(userToken, user);
+            return wrapForJsonp(new LoginInfo(user.getName(), userToken), callback);
+        } else {
+            return wrapForJsonp(new LoginInfo(null, null), callback);
+        }
+
+    }
+
     @GET
     @Path("check")
     @Produces("application/json")
@@ -61,9 +97,22 @@ public class DjResource {
     @GET
     @Path("updatevolume")
     @Produces("application/json")
-    public String webVolume(@QueryParam("callback") String callback, @QueryParam("volume") String volume) {
+    public String webVolume(@QueryParam("callback") String callback, @QueryParam("volume") String volume, @QueryParam("userToken") String userToken) {
+        validateUserToken(userToken);
         dj.setVolume(volume);
         return wrapForJsonp("", callback);
+    }
+
+    private void validateUserToken(String userToken) {
+        if(publicMode) {
+            User user = null;
+            if(userToken != null) {
+                user = tokenMap.get(userToken);
+            }
+            if(user == null || !user.isAdmin()) {
+                throw new BadRequestException("bad user token");
+            }
+        }
     }
 
     @GET
@@ -77,7 +126,8 @@ public class DjResource {
     @GET
     @Path("next")
     @Produces("application/json")
-    public String webNext(@QueryParam("callback") String callback, @QueryParam("currentId") String currentId) {
+    public String webNext(@QueryParam("callback") String callback, @QueryParam("currentId") String currentId, @QueryParam("userToken") String userToken) {
+        validateUserToken(userToken);
         SongEntry song;
         synchronized (dj) {
             if(!StringUtils.isEmpty(currentId) && dj.getCurrentSong() != null) {
@@ -104,7 +154,8 @@ public class DjResource {
     @GET
     @Path("info")
     @Produces("application/json")
-    public String webInfo(@QueryParam("callback") String callback) throws Exception {
+    public String webInfo(@QueryParam("callback") String callback, @QueryParam("userToken") String userToken) throws Exception {
+        validateUserToken(userToken);
         ObjectMapper mapper = new ObjectMapper();
         return wrapForJsonp(mapper.writerWithDefaultPrettyPrinter().writeValueAsString(dj.getStateRepresentation()),
                             callback);

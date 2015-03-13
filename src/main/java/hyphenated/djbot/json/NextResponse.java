@@ -1,12 +1,5 @@
 package hyphenated.djbot.json;
 
-/**
- * Created with IntelliJ IDEA.
- * User: sean
- * Date: 5/29/14
- * Time: 9:21 PM
- * To change this template use File | Settings | File Templates.
- */
 public class NextResponse {
     String status;
     SongEntry song;

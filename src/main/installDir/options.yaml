@@ -49,6 +49,14 @@ songlistHistoryLength: 10
 # starting volume, 0-100
 defaultVolume: 50
 
+# if your djbot is accessible on the public internet, you should set this to true. if it's false, then there is no authentication needed to skip songs, etc
+djbotPublic: false
+
+# these are only needed if djbotPublic is true. don't use the default password!
+adminUsername: admin
+adminPassword: password
+# (at some point there may be a real user system with a database and everything, but for now it's just this one user)
+
 #############################################################
 # stuff you don't need to care about
 logging:

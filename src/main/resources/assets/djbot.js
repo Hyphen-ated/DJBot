@@ -3,6 +3,8 @@ playingVideo = false;
 currentlyPlayingRequestId = 0;
 waitingOnNext = false;
 currentVolume = 30;
+currentUser = null;
+userToken = null;
 
 $(document).keydown(function(event){
     if(event.keyCode === 38 && event.altKey) {
@@ -15,6 +17,22 @@ $(document).keydown(function(event){
         nextSong(true);
     }
 });
+
+function login() {
+    $.ajax({
+                dataType: 'json',
+                url: urlPrefix + '/djbot/login?callback=?',
+                success: function(data) {
+                    if(data.username) {
+                        currentUser = data.username;
+                        userToken = data.userToken;
+                        $("#user").html("user: " + currentUser);
+                    } else {
+                        $("#user").html("not logged in");
+                    }
+                }
+            })
+}
 
 function loadSong(youtubeId, requestId, startTime) {
     var params = { allowScriptAccess: "always"};
@@ -38,6 +56,7 @@ function playpause() {
 
 function applyVolumeChange(player, vol) {
     currentVolume = vol;
+    //youtube volume is linear, switch to a log scale so volume 10->20 is similar to 80->90
     var youtubeVol = Math.pow(Math.E, vol * 0.04605);
     player.setVolume(youtubeVol);
 }
@@ -50,7 +69,7 @@ function changevol(delta) {
     applyVolumeChange(player, newvol);
     $.ajax({
             dataType: 'json',
-            url: urlPrefix + '/djbot/updatevolume?volume=' + newvol + '&callback=?',
+            url: urlPrefix + '/djbot/updatevolume?volume=' + newvol + '&userToken=' + userToken + '&callback=?',
             success: function(data) {
                 //nothing to do here now, since we have no error reporting
             }
@@ -66,7 +85,7 @@ function nextSong(skip) {
 
     $.ajax({
         dataType: 'json',
-        url: urlPrefix + '/djbot/next?'+maybeSkipped+'currentId=' + currentlyPlayingRequestId + '&callback=?',
+        url: urlPrefix + '/djbot/next?'+maybeSkipped+'currentId=' + currentlyPlayingRequestId + '&userToken=' + userToken + '&callback=?',
         success: function(data) {
             waitingOnNext = false;
             var itWorked = false;

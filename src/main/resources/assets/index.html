@@ -5,9 +5,15 @@
 <script type='text/javascript' src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.0/jquery.min.js"></script>
 
 <script src='/djbot/ui/djbot.js'></script>
+<link rel="stylesheet" href="style.css" type="text/css"/>
 
 
 <div id="everything">
+
+    <div id="userStuff">
+        <button id="login" onclick="login()">Log in</button>
+        <div id="user">not logged in</div>
+    </div>
     <div id="musicHolder">
         <div id="musicPlayer" />
     </div>
@@ -16,6 +22,7 @@
         <button onclick="nextSong(true)">Next</button>
         <button onclick="changevol(10)">+vol</button>
         <button onclick="changevol(-10)">-vol</button>
+        <input id = "trackVolume" type="checkbox" name="trackVolume" checked>let the bot change my volume</input>
     </div>
     <div id="title"></div>
     <div id="requester"></div>

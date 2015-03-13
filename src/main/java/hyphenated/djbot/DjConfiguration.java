@@ -36,6 +36,9 @@ public class DjConfiguration extends Configuration {
     private int songlistHistoryLength;
     private int defaultVolume;
 
+    private boolean isDjbotPublic;
+    private String adminUsername;
+    private String adminPassword;
 
 
     //this should be the channel name without the # at the front. (the same as the streamer's twitch account name)
@@ -179,5 +182,29 @@ public class DjConfiguration extends Configuration {
 
     public void setDefaultVolume(int defaultVolume) {
         this.defaultVolume = defaultVolume;
+    }
+
+    public boolean isDjbotPublic() {
+        return isDjbotPublic;
+    }
+
+    public void setDjbotPublic(boolean djbotPublic) {
+        isDjbotPublic = djbotPublic;
+    }
+
+    public String getAdminUsername() {
+        return adminUsername;
+    }
+
+    public void setAdminUsername(String adminUsername) {
+        this.adminUsername = adminUsername;
+    }
+
+    public String getAdminPassword() {
+        return adminPassword;
+    }
+
+    public void setAdminPassword(String adminPassword) {
+        this.adminPassword = adminPassword;
     }
 }

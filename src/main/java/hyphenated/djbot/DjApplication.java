@@ -1,10 +1,15 @@
 package hyphenated.djbot;
 
+import hyphenated.djbot.auth.ConfiguredUserAuthenticator;
+import hyphenated.djbot.auth.User;
 import hyphenated.djbot.health.ChannelCheck;
 import io.dropwizard.Application;
 import io.dropwizard.assets.AssetsBundle;
+import io.dropwizard.auth.AuthFactory;
+import io.dropwizard.auth.basic.BasicAuthFactory;
 import io.dropwizard.setup.Bootstrap;
 import io.dropwizard.setup.Environment;
+import org.apache.commons.lang3.StringUtils;
 
 import java.io.File;
 import java.io.PrintStream;
@@ -43,6 +48,21 @@ public class DjApplication extends Application<DjConfiguration> {
         environment.jersey().register(resource);
 
         final ChannelCheck channelCheck = new ChannelCheck(resource);
+
+        if(configuration.isDjbotPublic()) {
+            String adminUsername = configuration.getAdminUsername();
+            String adminPassword = configuration.getAdminPassword();
+            if(StringUtils.isBlank(adminUsername) || StringUtils.isBlank(adminPassword)) {
+                throw new RuntimeException("Djbot is set to public, so it needs an adminUsername and adminPassword");
+            }
+
+            environment.jersey().register(AuthFactory.binder(
+                    new BasicAuthFactory<User>(
+                            new ConfiguredUserAuthenticator(adminUsername, adminPassword),
+                            "djBotRealm",
+                            User.class )));
+
+        }
 
         environment.healthChecks().register("currentSong", channelCheck);
     }
