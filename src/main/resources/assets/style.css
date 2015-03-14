@@ -5,12 +5,22 @@
 #user {
      float:left;
      padding-left: 10px;
+     visibility: hidden;
 }
 
 #login {
      float:left;
+     visibility: hidden;
 }
 
 #musicHolder {
     clear:both;
+}
+
+#nextButton {
+    visibility: hidden;
+}
+
+#volumeCheckbox {
+    visibility: hidden;
 }

@@ -3,8 +3,25 @@ playingVideo = false;
 currentlyPlayingRequestId = 0;
 waitingOnNext = false;
 currentVolume = 30;
+usingAuth = false;
 currentUser = null;
 userToken = null;
+
+
+$.ajax({
+        dataType: 'json',
+        url: urlPrefix + '/djbot/authenabled?callback=?',
+        success: function(response) {
+            if(response) {
+                usingAuth = true;
+                document.getElementById("user").style.visibility = "visible";
+                document.getElementById("login").style.visibility = "visible";
+            } else {
+                usingAuth = false;
+                document.getElementById("nextButton").style.visibility = "visible";
+            }
+        }
+    })
 
 $(document).keydown(function(event){
     if(event.keyCode === 38 && event.altKey) {
@@ -20,18 +37,21 @@ $(document).keydown(function(event){
 
 function login() {
     $.ajax({
-                dataType: 'json',
-                url: urlPrefix + '/djbot/login?callback=?',
-                success: function(data) {
-                    if(data.username) {
-                        currentUser = data.username;
-                        userToken = data.userToken;
-                        $("#user").html("user: " + currentUser);
-                    } else {
-                        $("#user").html("not logged in");
-                    }
+            dataType: 'json',
+            url: urlPrefix + '/djbot/login?callback=?',
+            success: function(data) {
+                if(data.username) {
+                    currentUser = data.username;
+                    userToken = data.userToken;
+                    $("#user").html("user: " + currentUser);
+                    document.getElementById("nextButton").style.visibility = "visible";
+                    document.getElementById("volumeCheckbox").style.visibility = "visible";
+                    document.getElementById("trackVolume").checked = true;
+                } else {
+                    $("#user").html("not logged in");
                 }
-            })
+            }
+        })
 }
 
 function loadSong(youtubeId, requestId, startTime) {
@@ -67,13 +87,15 @@ function changevol(delta) {
     if(newvol > 100) newvol = 100;
     if(newvol < 10) newvol = 10;
     applyVolumeChange(player, newvol);
-    $.ajax({
-            dataType: 'json',
-            url: urlPrefix + '/djbot/updatevolume?volume=' + newvol + '&userToken=' + userToken + '&callback=?',
-            success: function(data) {
-                //nothing to do here now, since we have no error reporting
-            }
-        })
+    if(userToken || !usingAuth) {
+        $.ajax({
+                dataType: 'json',
+                url: urlPrefix + '/djbot/updatevolume?volume=' + newvol + '&userToken=' + userToken + '&callback=?',
+                success: function(data) {
+                    //nothing to do here now, since we have no error reporting
+                }
+            })
+    }
 }
 
 function nextSong(skip) {
@@ -158,7 +180,10 @@ function update() {
         success: function(data) {
             if(data) {
                 var player = document.getElementById('musicPlayer');
-                applyVolumeChange(player, data.volume);
+                if(!usingAuth || document.getElementById('trackVolume').checked) {
+                    applyVolumeChange(player, data.volume);
+                }
+
                 if(data.currentSongId !== 0 && data.currentSongId !== currentlyPlayingRequestId) {
                     player.pauseVideo();
                     waitingOnNext = true;

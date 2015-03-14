@@ -73,6 +73,13 @@ public class DjResource {
     }
 
     @GET
+    @Path("/authenabled")
+    @Produces("application/json")
+    public String webAuthEnabled(@QueryParam("callback") String callback) {
+        return wrapForJsonp(publicMode, callback);
+    }
+
+    @GET
     @Path("/login")
     @Produces("application/json")
     public String webLogin(@Auth User user, @QueryParam("callback") String callback) {

@@ -19,10 +19,10 @@
     </div>
     <div id="buttons">
         <button onclick="playpause()">Play/pause</button>
-        <button onclick="nextSong(true)">Next</button>
-        <button onclick="changevol(10)">+vol</button>
-        <button onclick="changevol(-10)">-vol</button>
-        <input id = "trackVolume" type="checkbox" name="trackVolume" checked>let the bot change my volume</input>
+        <button id="nextButton" onclick="nextSong(true)">Next</button>
+        <button id="volUpButton" onclick="changevol(10)">+vol</button>
+        <button id="volDownButton" onclick="changevol(-10)">-vol</button>
+        <span id="volumeCheckbox" ><input id="trackVolume" type="checkbox" name="trackVolume" checked>let the bot change my volume</input></span>
     </div>
     <div id="title"></div>
     <div id="requester"></div>
