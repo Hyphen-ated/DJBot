@@ -52,7 +52,7 @@ defaultVolume: 50
 # if your djbot is accessible on the public internet, you should set this to true. if it's false, then there is no authentication needed to skip songs, etc
 djbotPublic: false
 
-# these are only needed if djbotPublic is true. don't use the default password!
+# these are only needed if djbotPublic is true. don't use the default password! also, turn on SSL lower down in this file!
 adminUsername: admin
 adminPassword: password
 # (at some point there may be a real user system with a database and everything, but for now it's just this one user)
@@ -93,6 +93,12 @@ server:
     applicationConnectors:
         - type: http
           port: 8080
+        # uncomment these and put in appropriate keystore stuff if you want SSL (you'll probably need to use keytool)
+        #- type: https
+        #  port: 8443
+        #  keyStorePath: example.keystore
+        #  keyStorePassword: example
+        #  validateCerts: false
     adminConnectors:
         - type: http
           port: 8081
