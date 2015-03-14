@@ -24,3 +24,18 @@
 #volumeCheckbox {
     visibility: hidden;
 }
+
+
+#streamDiv {
+    float:left;
+    width: 600px;
+    height: 475px;
+}
+
+#chatDiv {
+    float:left;
+}
+
+#musicHolder {
+    clear:both;
+}

@@ -51,6 +51,9 @@ public class DjResource {
                 throw new RuntimeException("Object of type " + response.getClass().getName() + " not json serializable");
             }
         }
+        if(response instanceof String) {
+            objString = '\"' + objString + '\"';
+        }
         if(callback != null) {
             return callback + "(" + objString + ")";
         } else {
@@ -77,6 +80,13 @@ public class DjResource {
     @Produces("application/json")
     public String webAuthEnabled(@QueryParam("callback") String callback) {
         return wrapForJsonp(publicMode, callback);
+    }
+
+    @GET
+    @Path("/streamname")
+    @Produces("application/json")
+    public String webStreamName(@QueryParam("callback") String callback) {
+        return wrapForJsonp(dj.getStreamer(), callback);
     }
 
     @GET
