@@ -164,7 +164,7 @@ function update() {
 
     try {
         //are we sitting at the end of a video and it's time to load the next?
-        if( playingVideo && player && player.getPlayerState() === 0 && !(usingAuth || userToken)) {
+        if( playingVideo && player && player.getPlayerState() === 0 && !(usingAuth && !userToken)) {
             waitingOnNext = true;
             nextSong(false);
             return;
