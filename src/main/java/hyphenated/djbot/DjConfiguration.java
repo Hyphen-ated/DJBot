@@ -24,6 +24,8 @@ public class DjConfiguration extends Configuration {
     @NotEmpty
     private String twitchAccessToken;
     @NotEmpty
+    private String youtubeAccessToken;
+    @NotEmpty
     private String dropboxAccessToken;
     private float maxSongLength;
     private float maxSongLengthWhenQueueEmpty;
@@ -102,6 +104,14 @@ public class DjConfiguration extends Configuration {
 
     public void setTwitchAccessToken(String twitchAccessToken) {
         this.twitchAccessToken = twitchAccessToken;
+    }
+
+    public String getYoutubeAccessToken() {
+        return youtubeAccessToken;
+    }
+
+    public void setYoutubeAccessToken(String youtubeAccessToken) {
+        this.youtubeAccessToken = youtubeAccessToken;
     }
 
     public String getDropboxAccessToken() {

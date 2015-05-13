@@ -568,6 +568,7 @@ public class DjService {
         sb.append(", about ").append(runningSeconds / 60).append(" minutes");
     }
 
+    private static final Pattern youtubeDurationPattern = Pattern.compile("PT(((\\d)+)M)?((\\d)+)S");
     private void doYoutubeRequest(String sender, String youtubeId, int startSeconds) {
         updateQueuesForLeavers();
 
@@ -576,7 +577,7 @@ public class DjService {
             return;
         }
 
-        String infoUrl = "http://gdata.youtube.com/feeds/api/videos/" + youtubeId + "?v=2&alt=jsonc&restriction=" + conf.getUserCountryCode();
+        String infoUrl = "https://www.googleapis.com/youtube/v3/videos?part=contentDetails,snippet,status&id=" + youtubeId + "&key=" + conf.getYoutubeAccessToken();
         GetMethod get = new GetMethod(infoUrl);
         HttpClient client = new HttpClient();
         try {
@@ -584,7 +585,6 @@ public class DjService {
             if(errcode != 200) {
                 logger.info("Song request error: got code " + errcode + " from " + infoUrl);
                 denySong(sender, "I couldn't find info about that video on youtube");
-
                 return;
             }
         } catch (IOException e) {
@@ -598,32 +598,44 @@ public class DjService {
             if(resp == null) {
                 logger.info("Couldn't get detail at " + infoUrl);
                 denySong(sender, "I couldn't find info about that video on youtube");
-
                 return;
             }
             JSONObject obj = new JSONObject(resp);
-            JSONObject data = obj.getJSONObject("data");
-            String title = data.getString("title");
-            int durationSeconds = data.getInt("duration");
-            JSONObject accessControl = data.getJSONObject("accessControl");
-            String embedAllowed = accessControl.getString("embed");
-            JSONObject status = data.optJSONObject("status");
-            String restrictionReason = null;
-            if(status != null) {
-                restrictionReason = status.optString("reason");
-            }
 
-            if("requesterRegion".equals(restrictionReason)) {
+            JSONArray items = obj.getJSONArray("items");
+            if(items.length() == 0) {
+                logger.info("Empty 'items' array in youtube response for url " + infoUrl);
+                denySong(sender, "I couldn't find info about that video on youtube");
+                return;
+            }
+            JSONObject item = items.getJSONObject(0);
+            JSONObject snippet = item.getJSONObject("snippet");
+            JSONObject status = item.getJSONObject("status");
+            JSONObject contentDetails = item.getJSONObject("contentDetails");
+            String title = snippet.getString("title");
+            String durationStr = contentDetails.getString("duration");
+            //format is like "PT5M30S" for 5 minutes 30 seconds
+            Matcher m = youtubeDurationPattern.matcher(durationStr);
+            if(!m.matches()) {
+                logger.info("Bad 'duration' string from youtube: " + durationStr);
+                denySong(sender, "I couldn't understand youtube's description of that song");
+                return;
+            }
+            String minutes = m.group(2);
+            String seconds = m.group(4);
+            int durationSeconds = 60 * Integer.parseInt(minutes) + Integer.parseInt(seconds);
+
+            if (! countryIsAllowed(contentDetails)) {
                 denySong(sender, "that video can't be played in the streamer's country");
                 return;
             }
 
-            if("private".equals(restrictionReason)) {
+            if(!("public".equals(status.getString("privacyStatus")))) {
                 denySong(sender, "that video is private");
                 return;
             }
 
-            if(!("allowed".equals(embedAllowed))) {
+            if(!status.getBoolean("embeddable")) {
                 denySong(sender, "that video is not allowed to be embedded");
                 return;
             }
@@ -673,10 +685,43 @@ public class DjService {
             SongEntry newSong = new SongEntry(title, youtubeId, nextRequestId, sender, new Date().getTime(), durationSeconds, false, startSeconds);
             addSongToQueue(newSong);
 
-        } catch (IOException e) {
+        } catch (Exception e) {
             logger.error("Problem with youtube request \"" + youtubeId + "\"", e);
+            denySong(sender, "I had an error while trying to add that song");
             return;
         }
+    }
+
+    private boolean countryIsAllowed(JSONObject contentDetails) {
+        JSONObject regionRestriction = contentDetails.optJSONObject("regionRestriction");
+        if(regionRestriction != null) {
+            //if there's an "allowed" list and we're not in it, fail.
+            //if there's a "blocked" list and we are in it, fail
+            JSONArray allowed =  regionRestriction.optJSONArray("allowed");
+            if(allowed != null) {
+                boolean weAreAllowed = false;
+                for(int i = 0; i < allowed.length(); ++i) {
+                    String country = allowed.getString(i);
+                    if(country.equalsIgnoreCase(conf.getUserCountryCode())) {
+                        weAreAllowed = true;
+                    }
+                }
+                if(!weAreAllowed) {
+                    return false;
+                }
+            }
+
+            JSONArray blocked = contentDetails.optJSONArray("blocked");
+            if(blocked != null) {
+                for(int i = 0; i < blocked.length(); ++i) {
+                    String country = blocked.getString(i);
+                    if(country.equalsIgnoreCase(conf.getUserCountryCode())) {
+                        return false;
+                    }
+                }
+            }
+        }
+        return true;
     }
 
     private void addSongToQueue(SongEntry newSong) throws IOException {
@@ -701,7 +746,8 @@ public class DjService {
             return;
         }
 
-        String infoUrl = "http://gdata.youtube.com/feeds/api/playlists/" + listPathId + "?v=2&alt=jsonc&max-results=50";
+        String infoUrl = " https://www.googleapis.com/youtube/v3/playlistItems?part=contentDetails&playlistId=" + listPathId + "&key=" + conf.getYoutubeAccessToken() + "&maxResults=50";
+
         GetMethod get = new GetMethod(infoUrl);
         HttpClient client = new HttpClient();
         try {
@@ -727,19 +773,18 @@ public class DjService {
                 return;
             }
             JSONObject obj = new JSONObject(resp);
-            JSONObject data = obj.getJSONObject("data");
-            JSONArray items = data.getJSONArray("items");
+            JSONArray items = obj.getJSONArray("items");
             int songsAdded = 0;
             irc.message("Adding playlist...");
             for(int i = 0; i < items.length(); ++i) {
                 JSONObject item = items.getJSONObject(i);
-                JSONObject video = item.getJSONObject("video");
-                String videoId = video.getString("id");
+                JSONObject contentDetails = item.getJSONObject("contentDetails");
+                String videoId = contentDetails.getString("videoId");
                 songsAdded += addSonglistSong(sender, videoId);
             }
             irc.message("Added " + songsAdded + " songs to secondary queue");
 
-        } catch (IOException e) {
+        } catch (Exception e) {
             logger.error("Problem with youtube playlist request \"" + listPathId + "\"", e);
             return;
         }
@@ -749,7 +794,7 @@ public class DjService {
     //returns the number of songs added: 0 or 1
     //TODO: refactor this so there isn't so much duplication with doYoutubeRequest
     private int addSonglistSong(String sender, String videoId) {
-        String infoUrl = "http://gdata.youtube.com/feeds/api/videos/" + videoId + "?v=2&alt=jsonc&restriction=" + conf.getUserCountryCode();
+        String infoUrl = "https://www.googleapis.com/youtube/v3/videos?part=contentDetails,snippet,status&id=" + videoId + "&key=" + conf.getYoutubeAccessToken();
         GetMethod get = new GetMethod(infoUrl);
         HttpClient client = new HttpClient();
         try {
@@ -767,33 +812,54 @@ public class DjService {
             String resp = IOUtils.toString(get.getResponseBodyAsStream(), "utf-8");
             if(resp == null) {
                 logger.info("Couldn't get detail at " + infoUrl);
-
                 return 0;
             }
             JSONObject obj = new JSONObject(resp);
-            JSONObject data = obj.getJSONObject("data");
-            String title = data.getString("title");
-            int durationSeconds = data.getInt("duration");
-            JSONObject accessControl = data.getJSONObject("accessControl");
-            String embedAllowed = accessControl.getString("embed");
-            JSONObject status = data.optJSONObject("status");
-            String restrictionReason = null;
-            if(status != null) {
-                restrictionReason = status.optString("reason");
-            }
 
-            if("requesterRegion".equals(restrictionReason)) {
-                logger.info("Video " + videoId + " can't be played in streamer's country");
+            JSONArray items = obj.getJSONArray("items");
+            if(items.length() == 0) {
+                logger.info("Empty 'items' array in youtube response for url " + infoUrl);
+                return 0;
+            }
+            JSONObject item = items.getJSONObject(0);
+            JSONObject snippet = item.getJSONObject("snippet");
+            JSONObject status = item.getJSONObject("status");
+            JSONObject contentDetails = item.getJSONObject("contentDetails");
+            String title = snippet.getString("title");
+            String durationStr = contentDetails.getString("duration");
+            //format is like "PT5M30S" for 5 minutes 30 seconds
+            Matcher m = youtubeDurationPattern.matcher(durationStr);
+            if(!m.matches()) {
+                logger.info("Bad 'duration' string from youtube: " + durationStr);
+                return 0;
+            }
+            String minutes = m.group(2);
+            String seconds = m.group(4);
+            int durationSeconds = 0;
+            try {
+                if(seconds != null) {
+                    durationSeconds += Integer.parseInt(seconds);
+                }
+                if(minutes != null) {
+                    durationSeconds += 60 * Integer.parseInt(minutes);
+                }
+            } catch (NumberFormatException e) {
+                logger.info("couldn't parse duration string \"" + durationStr + "\" for videoid: " + videoId);
                 return 0;
             }
 
-            if("private".equals(restrictionReason)) {
-                logger.info("Video " + videoId + " is private");
+            if (! countryIsAllowed(contentDetails)) {
+                logger.info("playlist video " + videoId + " can't be played in the streamer's country");
                 return 0;
             }
 
-            if(!("allowed".equals(embedAllowed))) {
-                logger.info("Video " + videoId + " can't be embedded");
+            if(!("public".equals(status.getString("privacyStatus")))) {
+                logger.info("playlist video " + videoId + " is private");
+                return 0;
+            }
+
+            if(!status.getBoolean("embeddable")) {
+                logger.info("playlist video " + videoId + " is not embeddable");
                 return 0;
             }
 
