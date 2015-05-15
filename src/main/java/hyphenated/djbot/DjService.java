@@ -580,16 +580,17 @@ public class DjService {
         }
 
         String infoUrl = "https://www.googleapis.com/youtube/v3/videos?part=contentDetails,snippet,status&id=" + youtubeId + "&key=" + conf.getYoutubeAccessToken();
-        GetMethod get = new GetMethod(infoUrl);
+        GetMethod get;
         HttpClient client = new HttpClient();
         try {
+            get = new GetMethod(infoUrl);
             int errcode = client.executeMethod(get);
             if(errcode != 200) {
                 logger.info("Song request error: got code " + errcode + " from " + infoUrl);
                 denySong(sender, "I couldn't find info about that video on youtube");
                 return;
             }
-        } catch (IOException e) {
+        } catch (Exception e) {
             logger.warn("Couldn't get info from youtube api", e);
             denySong(sender, "I couldn't find info about that video on youtube");
             return;

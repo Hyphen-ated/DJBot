@@ -12,10 +12,15 @@ Next, go to http://twitchapps.com/tmi/ to generate an access token for your bot'
 
 Now you have to make a dropbox account for the bot to host the songlist. Once you do that, go to https://www.dropbox.com/developers/apps and create an app for your copy of the djbot.
 Dropbox will ask you a few questions: It should be of type "dropbox api app", it should be able to edit files and datastores, and it only needs to edit files that it creates itself.
-
 Go to the page for the app you just created and click "generate access token", then put that in the dropboxAccessToken field in options.yaml
 
-Don't let other people see these access tokens or they will be able to impersonate your bot on twitch or on dropbox!
+Now you need a youtube developer key. Go to https://console.developers.google.com and create a project. Name it whatever you want.
+Then click "APIs and Auth" on the left, then click "APIs" under that. Click "Youtube Data API". Click "Enable API".
+Then click "Credentials" on the left. Click "Create New Key" under "Public API Access". Click "Server Key". Click "Create".
+Copy the API key it shows you and put that in the youtubeAccessToken field in options.yaml.
+
+Don't let other people see these access tokens or they will be able to impersonate your bot on twitch, google, or dropbox!
+This includes the logs shown in the djbot window.
 
 Now set "channel" to your twitch streaming account where you want the djbot to join the chat
 

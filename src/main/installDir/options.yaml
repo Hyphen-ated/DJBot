@@ -1,7 +1,7 @@
 # Mandatory settings #########################################################
 botName: yourBotTwitchAccountName
 twitchAccessToken: "PUT YOUR BOT'S ACCESS TOKEN HERE INSIDE QUOTES"
-
+youtubeAccessToken: "PUT YOUR YOUTUBE DEVELOPER KEY HERE INSIDE QUOTES"
 dropboxAccessToken: "PUT YOUR DROPBOX APP ACCESS TOKEN HERE INSIDE QUOTES"
 
 channel: "#yourStreamingTwitchAccountName"
