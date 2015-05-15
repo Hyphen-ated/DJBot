@@ -13,6 +13,8 @@ import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.joda.time.DateTime;
+import org.joda.time.Period;
+import org.joda.time.format.ISOPeriodFormat;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.slf4j.Logger;
@@ -615,15 +617,8 @@ public class DjService {
             String title = snippet.getString("title");
             String durationStr = contentDetails.getString("duration");
             //format is like "PT5M30S" for 5 minutes 30 seconds
-            Matcher m = youtubeDurationPattern.matcher(durationStr);
-            if(!m.matches()) {
-                logger.info("Bad 'duration' string from youtube: " + durationStr);
-                denySong(sender, "I couldn't understand youtube's description of that song");
-                return;
-            }
-            String minutes = m.group(2);
-            String seconds = m.group(4);
-            int durationSeconds = 60 * Integer.parseInt(minutes) + Integer.parseInt(seconds);
+            Period p = ISOPeriodFormat.standard().parsePeriod(durationStr);
+            int durationSeconds = p.toStandardSeconds().getSeconds();
 
             if (! countryIsAllowed(contentDetails)) {
                 denySong(sender, "that video can't be played in the streamer's country");
@@ -828,25 +823,8 @@ public class DjService {
             String title = snippet.getString("title");
             String durationStr = contentDetails.getString("duration");
             //format is like "PT5M30S" for 5 minutes 30 seconds
-            Matcher m = youtubeDurationPattern.matcher(durationStr);
-            if(!m.matches()) {
-                logger.info("Bad 'duration' string from youtube: " + durationStr);
-                return 0;
-            }
-            String minutes = m.group(2);
-            String seconds = m.group(4);
-            int durationSeconds = 0;
-            try {
-                if(seconds != null) {
-                    durationSeconds += Integer.parseInt(seconds);
-                }
-                if(minutes != null) {
-                    durationSeconds += 60 * Integer.parseInt(minutes);
-                }
-            } catch (NumberFormatException e) {
-                logger.info("couldn't parse duration string \"" + durationStr + "\" for videoid: " + videoId);
-                return 0;
-            }
+            Period p = ISOPeriodFormat.standard().parsePeriod(durationStr);
+            int durationSeconds = p.toStandardSeconds().getSeconds();
 
             if (! countryIsAllowed(contentDetails)) {
                 logger.info("playlist video " + videoId + " can't be played in the streamer's country");
