@@ -14,8 +14,7 @@ $.ajax({
         success: function(response) {
             if(response) {
                 usingAuth = true;
-                document.getElementById("user").style.visibility = "visible";
-                document.getElementById("login").style.visibility = "visible";
+                document.getElementById("userStuff").style.display = "block";
             } else {
                 usingAuth = false;
                 document.getElementById("nextButton").style.visibility = "visible";

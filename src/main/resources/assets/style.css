@@ -1,16 +1,15 @@
-#userstuff {
+#userStuff {
     float:top;
+    display:none;
 }
 
 #user {
      float:left;
      padding-left: 10px;
-     visibility: hidden;
 }
 
 #login {
      float:left;
-     visibility: hidden;
 }
 
 #musicHolder {
