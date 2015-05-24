@@ -707,7 +707,7 @@ public class DjService {
                 }
             }
 
-            JSONArray blocked = contentDetails.optJSONArray("blocked");
+            JSONArray blocked = regionRestriction.optJSONArray("blocked");
             if(blocked != null) {
                 for(int i = 0; i < blocked.length(); ++i) {
                     String country = blocked.getString(i);
