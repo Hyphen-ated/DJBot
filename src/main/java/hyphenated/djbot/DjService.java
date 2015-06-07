@@ -252,7 +252,7 @@ public class DjService {
     }
 
     public void irc_songs(String sender) {
-        irc.message( sender + ": use \"!songrequest youtubeURL\" to request a song");
+        irc.message( sender + ": see " + conf.getHelpUrl() + " for help");
     }
 
 
@@ -293,15 +293,22 @@ public class DjService {
 
     //given a string that a user songrequested, try to figure out what it is a link to and do the work to handle it
     public synchronized void irc_songRequest(String sender, String requestStr) {
+        if(StringUtils.isBlank(requestStr)) {
+            irc_songs(sender);
+            return;
+        }
 
         int startSeconds = extractStartSecondsFromTimeParam(requestStr);
 
-        String possibleYoutubeId = requestStr.substring(0, 11);
-        Matcher m = idPattern.matcher(possibleYoutubeId);
-        //we support !songrequest <youtubeid>
-        if (m.matches()) {
-            doYoutubeRequest(sender, possibleYoutubeId, startSeconds);
-            return;
+        if(requestStr.length() >= 11) {
+            String possibleYoutubeId = requestStr.substring(0, 11);
+
+            Matcher m = idPattern.matcher(possibleYoutubeId);
+            //we support !songrequest <youtubeid>
+            if (m.matches()) {
+                doYoutubeRequest(sender, possibleYoutubeId, startSeconds);
+                return;
+            }
         }
 
         //we support youtu.be/<youtubeid>

@@ -39,6 +39,7 @@ public class DjConfiguration extends Configuration {
     private int defaultVolume;
     private String botChatPrefix;
     private String nowPlayingPattern;
+    private String helpUrl;
 
     private boolean isDjbotPublic;
     private String adminUsername;
@@ -210,6 +211,14 @@ public class DjConfiguration extends Configuration {
 
     public void setNowPlayingPattern(String nowPlayingPattern) {
         this.nowPlayingPattern = nowPlayingPattern;
+    }
+
+    public String getHelpUrl() {
+        return helpUrl;
+    }
+
+    public void setHelpUrl(String helpUrl) {
+        this.helpUrl = helpUrl;
     }
 
     public boolean isDjbotPublic() {
