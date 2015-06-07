@@ -48,6 +48,8 @@ public class DjService {
 
     private volatile ArrayList<SongEntry> lastPlayedSongs = new ArrayList<>();
 
+    public volatile HashMap<String, Integer> lastRequestIdByUser = new HashMap<>();
+
     private volatile int volume;
     private volatile int nextRequestId;
 
@@ -332,6 +334,13 @@ public class DjService {
             return;
         }
         irc.message(sender + ": couldn't find a youtube video id in your request");
+
+    }
+
+    public synchronized void irc_wrongsong(String sender) {
+        int songId = lastRequestIdByUser.get(sender);
+        this.removeSongFromList(songList, songId, sender, false);
+        this.removeSongFromList(secondarySongList, songId, sender, false);
 
     }
 
@@ -695,6 +704,7 @@ public class DjService {
 
             SongEntry newSong = new SongEntry(title, youtubeId, nextRequestId, sender, new Date().getTime(), durationSeconds, false, startSeconds);
             addSongToQueue(newSong);
+            lastRequestIdByUser.put(sender, nextRequestId);
 
         } catch (Exception e) {
             logger.error("Problem with youtube request \"" + youtubeId + "\"", e);
@@ -1012,4 +1022,5 @@ public class DjService {
         DjState state = new DjState(songList, secondarySongList, songHistory, currentSong, volume, nextRequestId, dropboxLink, irc.opUsernames);
         return state;
     }
+
 }
