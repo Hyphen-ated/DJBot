@@ -180,6 +180,7 @@ public class DjIrcBot extends PircBot {
     }
 
     public void message(String msg) {
+        msg = conf.getBotChatPrefix() + msg;
         sendMessage(channel, msg);
         logMessage(conf.getBotName(), msg);
     }

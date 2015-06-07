@@ -37,6 +37,7 @@ public class DjConfiguration extends Configuration {
     private int secondaryQueueCountdownSeconds;
     private int songlistHistoryLength;
     private int defaultVolume;
+    private String botChatPrefix;
 
     private boolean isDjbotPublic;
     private String adminUsername;
@@ -192,6 +193,14 @@ public class DjConfiguration extends Configuration {
 
     public void setDefaultVolume(int defaultVolume) {
         this.defaultVolume = defaultVolume;
+    }
+
+    public String getBotChatPrefix() {
+        return botChatPrefix;
+    }
+
+    public void setBotChatPrefix(String botChatPrefix) {
+        this.botChatPrefix = botChatPrefix;
     }
 
     public boolean isDjbotPublic() {

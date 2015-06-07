@@ -49,6 +49,9 @@ songlistHistoryLength: 10
 # starting volume, 0-100
 defaultVolume: 50
 
+# the bot will put this in front of every message it sends, maybe you want to put ! here so the messages will be hidden in OBS chat
+botChatPrefix: ""
+
 # if your djbot is accessible on the public internet, you should set this to true. if it's false, then there is no authentication needed to skip songs, etc
 djbotPublic: false
 
