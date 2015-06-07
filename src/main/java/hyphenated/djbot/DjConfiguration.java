@@ -38,6 +38,7 @@ public class DjConfiguration extends Configuration {
     private int songlistHistoryLength;
     private int defaultVolume;
     private String botChatPrefix;
+    private String nowPlayingPattern;
 
     private boolean isDjbotPublic;
     private String adminUsername;
@@ -201,6 +202,14 @@ public class DjConfiguration extends Configuration {
 
     public void setBotChatPrefix(String botChatPrefix) {
         this.botChatPrefix = botChatPrefix;
+    }
+
+    public String getNowPlayingPattern() {
+        return nowPlayingPattern;
+    }
+
+    public void setNowPlayingPattern(String nowPlayingPattern) {
+        this.nowPlayingPattern = nowPlayingPattern;
     }
 
     public boolean isDjbotPublic() {

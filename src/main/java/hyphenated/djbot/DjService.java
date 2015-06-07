@@ -35,6 +35,7 @@ public class DjService {
 
     private final String queueHistoryFilePath = "queue.json";
     private final String unplayedSongsFilePath = "unplayedSongs.json";
+    private final String nowPlayingFilePath = "nowPlayingInfo.txt";
     private final String dboxFilePath = "/Public/songlist.txt";
 
     private final DjConfiguration conf;
@@ -457,6 +458,18 @@ public class DjService {
         }
     }
 
+    private void updateNowPlayingFile(SongEntry currentSong) {
+        String nowPlaying = conf.getNowPlayingPattern();
+        nowPlaying = nowPlaying.replace("%title%", currentSong.getTitle());
+        nowPlaying = nowPlaying.replace("%user%", currentSong.getUser());
+        nowPlaying = nowPlaying.replace("%length%", currentSong.buildDurationStr());
+        try {
+            FileUtils.writeStringToFile(new File(nowPlayingFilePath), nowPlaying, false);
+        } catch (IOException e) {
+            logger.warn("couldn't update nowPlayingInfo.txt", e);
+        }
+    }
+
     private String buildReportJSON() {
         int runningSeconds = 0;
 
@@ -860,7 +873,7 @@ public class DjService {
                 volume = vol;
             }
         } catch (NumberFormatException e) {
-            logger.error("Not a number: \""+ trim +"\"");
+            logger.error("Not a number: \"" + trim + "\"");
         }
     }
 
@@ -954,6 +967,7 @@ public class DjService {
         if(songList.size() == 0) {
             if(secondarySongList.size() == 0) {
                 currentSong = null;
+                updateNowPlayingFile(currentSong);
                 return null;
             }
             song = secondarySongList.remove(0);
@@ -970,12 +984,15 @@ public class DjService {
 
         try {
             updatePlayedSongsFile();
+            updateNowPlayingFile(currentSong);
         } catch (IOException e) {
             logger.error("Couldn't update playedSongs file", e);
         }
 
         return song;
     }
+
+
 
     public SongEntry getCurrentSong() {
         return currentSong;

@@ -1,0 +1,1 @@
+This file can be overlayed in OBS; the bot edits it when songs play
