@@ -4,6 +4,7 @@ import org.jibble.pircbot.PircBot;
 import org.jibble.pircbot.User;
 import org.joda.time.DateTime;
 
+import java.io.UnsupportedEncodingException;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Locale;
@@ -34,6 +35,11 @@ public class DjIrcBot extends PircBot {
         this.channel = "#" + conf.getChannel();
         this.setMessageDelay(conf.getMessageDelayMs());
         this.setName(conf.getBotName());
+        try {
+            this.setEncoding("utf-8");
+        } catch (UnsupportedEncodingException e) {
+            throw new RuntimeException(e);
+        }
     }
 
 
