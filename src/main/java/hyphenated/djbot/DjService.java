@@ -163,11 +163,6 @@ public class DjService {
     }
 
     public synchronized void irc_removesong( String sender, String skipIdStr) {
-        if(!irc.isMod(sender)) {
-            irc.message("removing or skipping songs is for mods only");
-            return;
-        }
-
         int skipId;
         try {
             skipId = Integer.parseInt(skipIdStr);
@@ -176,11 +171,14 @@ public class DjService {
             return;
         }
 
-        if (currentSong.getRequestId() == skipId) {
+        boolean isMod = irc.isMod(sender);
+
+        if (currentSong.getRequestId() == skipId && isMod) {
             nextSong();
         }
-        removeSongFromList(songList, skipId, sender);
-        removeSongFromList(secondarySongList, skipId, sender);
+
+        removeSongFromList(songList, skipId, sender, isMod);
+        removeSongFromList(secondarySongList, skipId, sender, isMod);
 
         try {
             updatePlayedSongsFile();
@@ -191,13 +189,17 @@ public class DjService {
 
     }
 
-    private void removeSongFromList(List<SongEntry> listOfSongs, int skipId, String sender) {
+    private void removeSongFromList(List<SongEntry> listOfSongs, int skipId, String sender, boolean isMod) {
         Iterator<SongEntry> entryIterator = listOfSongs.iterator();
         while (entryIterator.hasNext()) {
             SongEntry curEntry = entryIterator.next();
             if (curEntry.getRequestId() == skipId) {
-                irc.message(sender + ": removed song \"" + curEntry.getTitle() + "\"");
-                entryIterator.remove();
+                if(isMod || curEntry.getUser().equals(sender)) {
+                    irc.message(sender + ": removed song \"" + curEntry.getTitle() + "\"");
+                    entryIterator.remove();
+                } else {
+                    irc.message(sender + ": to remove others' songs you need to be mod");
+                }
             }
         }
     }
