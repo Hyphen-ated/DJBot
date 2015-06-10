@@ -1,11 +1,7 @@
 package hyphenated.djbot;
 
 import com.dropbox.core.*;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.JsonNodeFactory;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import hyphenated.djbot.json.SongEntry;
 import org.apache.commons.httpclient.HttpClient;
 import org.apache.commons.httpclient.methods.GetMethod;
@@ -346,6 +342,7 @@ public class DjService {
 
     }
 
+    //remove the last song someone added
     public synchronized void irc_wrongsong(String sender) {
         Integer songId = lastRequestIdByUser.get(sender);
         if(songId == null || songId == 0) {
@@ -591,6 +588,7 @@ public class DjService {
         }
     }
 
+    //go write to the filesystem so the user can overlay this text file on their stream if they want
     private void updateNowPlayingFile(SongEntry currentSong) {
         String nowPlaying = conf.getNowPlayingPattern();
         nowPlaying = nowPlaying.replace("%title%", currentSong.getTitle());
@@ -602,61 +600,6 @@ public class DjService {
             logger.warn("couldn't update nowPlayingInfo.txt", e);
         }
     }
-
-    private String buildReportJSON() {
-        int runningSeconds = 0;
-
-        ObjectNode reportJs = new ObjectNode(JsonNodeFactory.instance);
-        if(currentSong != null) {
-            runningSeconds += currentSong.getDurationSeconds();
-            reportJs.put("nowPlaying", songEntryToReportJSON(currentSong, -1));
-        }
-
-        if(songList.size() > 0) {
-            ArrayNode mainList = new ArrayNode(JsonNodeFactory.instance);
-            for(SongEntry song : songList) {
-                mainList.add(songEntryToReportJSON(song, runningSeconds));
-                runningSeconds += song.getDurationSeconds();
-            }
-            reportJs.put("mainList", mainList);
-        }
-
-
-        if(secondarySongList.size() > 0) {
-            ArrayNode secondaryList = new ArrayNode(JsonNodeFactory.instance);
-            for(SongEntry song : songList) {
-                secondaryList.add(songEntryToReportJSON(song, runningSeconds));
-                runningSeconds += song.getDurationSeconds();
-            }
-            reportJs.put("secondaryList", secondaryList);
-        }
-
-        runningSeconds = 0;
-        if(lastPlayedSongs.size() > 0) {
-            ArrayNode previouslyPlayed = new ArrayNode(JsonNodeFactory.instance);
-            for(int i = lastPlayedSongs.size()-1; i >=0; --i) {
-                SongEntry song = lastPlayedSongs.get(i);
-                previouslyPlayed.add(songEntryToReportJSON(song, runningSeconds));
-                runningSeconds += song.getDurationSeconds();
-            }
-            reportJs.put("previouslyPlayed", previouslyPlayed);
-        }
-
-
-        return reportJs.toString();
-
-    }
-
-    private ObjectNode songEntryToReportJSON(SongEntry song, int secondsFromNow) {
-
-        ObjectMapper mapper = new ObjectMapper();
-        JsonNode js = mapper.valueToTree(song);
-        ObjectNode obJs = (ObjectNode) js;
-
-        obJs.put("time", "about " +  secondsFromNow / 60 + " minutes");
-        return obJs;
-    }
-
 
     private String buildReportString() {
         StringBuilder sb = new StringBuilder();
@@ -716,7 +659,6 @@ public class DjService {
         sb.append(", about ").append(runningSeconds / 60).append(" minutes");
     }
 
-    private static final Pattern youtubeDurationPattern = Pattern.compile("PT(((\\d)+)M)?((\\d)+)S");
     private void doYoutubeRequest(String sender, String youtubeId, int startSeconds) {
         updateQueuesForLeavers();
 
@@ -1049,10 +991,6 @@ public class DjService {
             }
         }
         return false;
-    }
-
-    public boolean noMoreSongs() {
-        return songList.size() == 0 && secondarySongList.size() == 0;
     }
 
     public synchronized SongEntry startCurrentSong() {
