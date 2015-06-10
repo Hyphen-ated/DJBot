@@ -25,6 +25,7 @@ import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.net.URLEncoder;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -48,6 +49,7 @@ public class DjService {
 
     private volatile ArrayList<SongEntry> lastPlayedSongs = new ArrayList<>();
 
+    //given a user, what is the ID of the last song they requested? this is used for !wrongsong
     public volatile HashMap<String, Integer> lastRequestIdByUser = new HashMap<>();
 
     private volatile int volume;
@@ -345,10 +347,123 @@ public class DjService {
     }
 
     public synchronized void irc_wrongsong(String sender) {
-        int songId = lastRequestIdByUser.get(sender);
+        Integer songId = lastRequestIdByUser.get(sender);
+        if(songId == null || songId == 0) {
+            irc.message(sender + ": I don't have a most-recent request from you I can undo");
+        }
         this.removeSongFromList(songList, songId, sender, false);
         this.removeSongFromList(secondarySongList, songId, sender, false);
+        lastRequestIdByUser.put(sender, 0);
 
+    }
+
+    public void irc_songSearch(String sender, String q) {
+
+        if(!sender.equals(streamer) && conf.getQueueSize() > 0 && songList.size() >= conf.getQueueSize()) {
+            denySong(sender, "the queue is full at " + conf.getQueueSize());
+            return;
+        }
+
+        if(!sender.equals(streamer) && conf.getMaxSongsPerUser() > 0 && senderCount(sender) >= conf.getMaxSongsPerUser()) {
+            denySong(sender, "you have " + conf.getMaxSongsPerUser() + " songs in the queue already");
+            return;
+        }
+
+        try {
+            String searchUrl = "https://www.googleapis.com/youtube/v3/search?videoEmbeddable=true&part=id&q=" + URLEncoder.encode(q, "UTF-8") + "&type=video&regionCode=" + conf.getUserCountryCode() + "&maxResults=5&key=" + conf.getYoutubeAccessToken();
+            GetMethod get;
+            HttpClient client = new HttpClient();
+
+            get = new GetMethod(searchUrl);
+            int errcode = client.executeMethod(get);
+            if (errcode != 200) {
+                logger.info("Song search error: got code " + errcode + " from " + searchUrl);
+                denySong(sender, "I couldn't run that search properly on youtube");
+                return;
+            }
+
+            String resp = IOUtils.toString(get.getResponseBodyAsStream(), "utf-8");
+            if (resp == null) {
+                logger.info("Couldn't get detail at " + searchUrl);
+                denySong(sender, "I couldn't run that search properly on youtube");
+                return;
+            }
+            JSONObject searchObj = new JSONObject(resp);
+
+            JSONArray searchItems = searchObj.getJSONArray("items");
+            if (searchItems.length() == 0) {
+                logger.info("Empty 'items' array in youtube response for url " + searchUrl);
+                denySong(sender, "no results for that search");
+                return;
+            }
+            for(int i = 0; i < searchItems.length(); ++i) {
+                JSONObject resultItem = searchItems.getJSONObject(i);
+                JSONObject id = resultItem.getJSONObject("id");
+                String videoId = id.getString("videoId");
+                JSONObject obj = getJsonForYoutubeId(videoId);
+
+                JSONArray items = obj.getJSONArray("items");
+                if(items.length() == 0) {
+                    continue;
+                }
+                JSONObject item = items.getJSONObject(0);
+                JSONObject snippet = item.getJSONObject("snippet");
+                JSONObject status = item.getJSONObject("status");
+                JSONObject contentDetails = item.getJSONObject("contentDetails");
+                String title = snippet.getString("title");
+                String durationStr = contentDetails.getString("duration");
+                //format is like "PT5M30S" for 5 minutes 30 seconds
+                Period p = ISOPeriodFormat.standard().parsePeriod(durationStr);
+                int durationSeconds = p.toStandardSeconds().getSeconds();
+
+                if (! countryIsAllowed(contentDetails)) {
+                    continue;
+                }
+
+                if(!("public".equals(status.getString("privacyStatus")))) {
+                    continue;
+                }
+
+                if(!status.getBoolean("embeddable")) {
+                    continue;
+                }
+
+                if(durationSeconds / 60.0 > songLengthAllowedMinutes()) {
+                    continue;
+                }
+
+                if(videoId.equals(currentSong.getVideoId())) {
+                    continue;
+                }
+
+                if(idCountInMainList(videoId) > 0) {
+                    continue;
+                }
+
+                if(idInRecentHistory(videoId)) {
+                    continue;
+                }
+
+                if(moveToPrimaryIfSongInSecondary(videoId)) {
+                    irc.message(sender + ": bumping \"" + title + "\" to main queue" );
+                    return;
+                }
+
+                //this will cause a redundant looking double message if "up next" messages are enabled and there is no song playing.
+                //but that's better than the alternative of missing the message entirely if no songs are playing at all and the player is not open
+                //(which is a common scenario when someone first sets up their bot)
+                irc.message(sender + ": added \"" + title + "\" to queue. id: " + nextRequestId);
+
+                SongEntry newSong = new SongEntry(title, videoId, nextRequestId, sender, new Date().getTime(), durationSeconds, false, 0);
+                addSongToQueue(sender, newSong);
+                return;
+            }
+        } catch (Exception e) {
+            denySong(sender, "I had a problem trying to run that search");
+            return;
+        }
+        //if we get here, it means none of the songs in the results were okay
+        denySong(sender, "I didn't find an appropriate video early enough in the search results");
     }
 
 
@@ -610,35 +725,15 @@ public class DjService {
             return;
         }
 
-        String infoUrl = "https://www.googleapis.com/youtube/v3/videos?part=contentDetails,snippet,status&id=" + youtubeId + "&key=" + conf.getYoutubeAccessToken();
-        GetMethod get;
-        HttpClient client = new HttpClient();
-        try {
-            get = new GetMethod(infoUrl);
-            int errcode = client.executeMethod(get);
-            if(errcode != 200) {
-                logger.info("Song request error: got code " + errcode + " from " + infoUrl);
-                denySong(sender, "I couldn't find info about that video on youtube");
-                return;
-            }
-        } catch (Exception e) {
-            logger.warn("Couldn't get info from youtube api", e);
-            denySong(sender, "I couldn't find info about that video on youtube");
-            return;
-        }
+
 
         try {
-            String resp = IOUtils.toString(get.getResponseBodyAsStream(), "utf-8");
-            if(resp == null) {
-                logger.info("Couldn't get detail at " + infoUrl);
-                denySong(sender, "I couldn't find info about that video on youtube");
-                return;
-            }
-            JSONObject obj = new JSONObject(resp);
+
+            JSONObject obj = getJsonForYoutubeId(youtubeId);
 
             JSONArray items = obj.getJSONArray("items");
             if(items.length() == 0) {
-                logger.info("Empty 'items' array in youtube response for url " + infoUrl);
+                logger.info("Empty 'items' array in youtube response for id " + youtubeId);
                 denySong(sender, "I couldn't find info about that video on youtube");
                 return;
             }
@@ -707,17 +802,33 @@ public class DjService {
             //(which is a common scenario when someone first sets up their bot)
             irc.message(sender + ": added \"" + title + "\" to queue. id: " + nextRequestId);
 
-
-
             SongEntry newSong = new SongEntry(title, youtubeId, nextRequestId, sender, new Date().getTime(), durationSeconds, false, startSeconds);
-            addSongToQueue(newSong);
-            lastRequestIdByUser.put(sender, nextRequestId);
+            addSongToQueue(sender, newSong);
+
 
         } catch (Exception e) {
             logger.error("Problem with youtube request \"" + youtubeId + "\"", e);
             denySong(sender, "I had an error while trying to add that song");
             return;
         }
+    }
+
+    private JSONObject getJsonForYoutubeId(String youtubeId) throws Exception {
+        String infoUrl = "https://www.googleapis.com/youtube/v3/videos?part=contentDetails,snippet,status&id=" + youtubeId + "&key=" + conf.getYoutubeAccessToken();
+        GetMethod get;
+        HttpClient client = new HttpClient();
+        get = new GetMethod(infoUrl);
+        int errcode = client.executeMethod(get);
+        if(errcode != 200) {
+            throw new RuntimeException("Http error " + errcode + " from youtube for id " + youtubeId);
+        }
+
+        String resp = IOUtils.toString(get.getResponseBodyAsStream(), "utf-8");
+        if(resp == null) {
+            logger.info("Couldn't get detail at " + infoUrl);
+            throw new RuntimeException("Couldn't understand youtube's response for id "  + youtubeId);
+        }
+        return new JSONObject(resp);
     }
 
     private boolean countryIsAllowed(JSONObject contentDetails) {
@@ -752,14 +863,17 @@ public class DjService {
         return true;
     }
 
-    private void addSongToQueue(SongEntry newSong) throws IOException {
+    private void addSongToQueue(String sender, SongEntry newSong) throws IOException {
         ObjectMapper mapper = new ObjectMapper();
+
+        lastRequestIdByUser.put(sender, nextRequestId);
         ++nextRequestId;
         if(newSong.isBackup()) {
             secondarySongList.add(newSong);
         } else {
             songList.add(newSong);
         }
+
 
 
         String songJson = mapper.writeValueAsString(newSong);
@@ -822,31 +936,13 @@ public class DjService {
     //returns the number of songs added: 0 or 1
     //TODO: refactor this so there isn't so much duplication with doYoutubeRequest
     private int addSonglistSong(String sender, String videoId) {
-        String infoUrl = "https://www.googleapis.com/youtube/v3/videos?part=contentDetails,snippet,status&id=" + videoId + "&key=" + conf.getYoutubeAccessToken();
-        GetMethod get = new GetMethod(infoUrl);
-        HttpClient client = new HttpClient();
-        try {
-            int errcode = client.executeMethod(get);
-            if(errcode != 200) {
-                logger.info("Song request error: got code " + errcode + " from " + infoUrl);
-                return 0;
-            }
-        } catch (IOException e) {
-            logger.warn("Couldn't get info from youtube api", e);
-            return 0;
-        }
 
         try {
-            String resp = IOUtils.toString(get.getResponseBodyAsStream(), "utf-8");
-            if(resp == null) {
-                logger.info("Couldn't get detail at " + infoUrl);
-                return 0;
-            }
-            JSONObject obj = new JSONObject(resp);
+            JSONObject obj = getJsonForYoutubeId(videoId);
 
             JSONArray items = obj.getJSONArray("items");
             if(items.length() == 0) {
-                logger.info("Empty 'items' array in youtube response for url " + infoUrl);
+                logger.info("Empty 'items' array in youtube response for id " + videoId);
                 return 0;
             }
             JSONObject item = items.getJSONObject(0);
@@ -876,10 +972,10 @@ public class DjService {
 
             boolean isBackupSong = true;
             SongEntry newSong = new SongEntry(title, videoId, nextRequestId, sender, new Date().getTime(), durationSeconds, isBackupSong, 0);
-            addSongToQueue(newSong);
+            addSongToQueue(sender, newSong);
             return 1;
 
-        } catch (IOException e) {
+        } catch (Exception e) {
             logger.info("Problem getting info for video " + videoId);
             return 0;
         }
@@ -1029,5 +1125,6 @@ public class DjService {
         DjState state = new DjState(songList, secondarySongList, songHistory, currentSong, volume, nextRequestId, dropboxLink, irc.opUsernames);
         return state;
     }
+
 
 }

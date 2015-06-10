@@ -28,6 +28,7 @@ public class DjIrcBot extends PircBot {
     final String label_songhelp = "!songhelp";
     final String label_wrongsong = "!wrongsong";
     final String label_songundo = "!songundo";
+    final String label_songsearch = "!songsearch";
 
 
     public volatile HashSet<String> opUsernames = new HashSet<>();
@@ -176,6 +177,10 @@ public class DjIrcBot extends PircBot {
         } else if (lowercaseMessage.startsWith(label_nextsong)) {
             logMessage(sender, message);
             dj.irc_nextsong(sender);
+        } else if (lowercaseMessage.startsWith(label_songsearch)) {
+            logMessage(sender, message);
+            dj.irc_songSearch(sender, message.substring(label_songsearch.length()).trim());
+            //"songs" has to be checked after "songsearch"
         } else if (lowercaseMessage.startsWith(label_songs)) {
             logMessage(sender, message);
             dj.irc_songs(sender);

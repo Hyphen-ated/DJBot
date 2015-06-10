@@ -1,6 +1,5 @@
 package hyphenated.djbot;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import io.dropwizard.Configuration;
 import org.hibernate.validator.constraints.NotEmpty;
 
@@ -40,6 +39,7 @@ public class DjConfiguration extends Configuration {
     private String botChatPrefix;
     private String nowPlayingPattern;
     private String helpUrl;
+    private boolean searchAllowed;
 
     private boolean isDjbotPublic;
     private String adminUsername;
@@ -215,6 +215,14 @@ public class DjConfiguration extends Configuration {
 
     public String getHelpUrl() {
         return helpUrl;
+    }
+
+    public boolean isSearchAllowed() {
+        return searchAllowed;
+    }
+
+    public void setSearchAllowed(boolean searchAllowed) {
+        this.searchAllowed = searchAllowed;
     }
 
     public void setHelpUrl(String helpUrl) {

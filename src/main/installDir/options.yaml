@@ -58,6 +58,9 @@ nowPlayingPattern: "Now playing: %title% -- %length% -- requested by %user%.  "
 # where to send people that do !songhelp
 helpUrl: "http://hyphen-ated.github.io/DJBot/"
 
+# can users type "!songsearch some terms" to add a song that matches the terms
+searchAllowed: true
+
 # if your djbot is accessible on the public internet, you should set this to true. if it's false, then there is no authentication needed to skip songs, etc
 djbotPublic: false
 
