@@ -53,7 +53,7 @@ defaultVolume: 50
 botChatPrefix: ""
 
 # what to put in nowPlayingInfo.txt when a song comes on. %title% is the youtube title, %length% is its length like 3:10, %user% is who requested it
-nowPlayingPattern: "Now playing: %title% -- %length% -- requested by %user%.  "
+nowPlayingPattern: "%title% -- %length% -- requested by %user%.  "
 
 # where to send people that do !songhelp
 helpUrl: "http://hyphen-ated.github.io/DJBot/"

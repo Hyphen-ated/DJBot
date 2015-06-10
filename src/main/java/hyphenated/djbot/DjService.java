@@ -205,7 +205,7 @@ public class DjService {
     }
 
 
-    public void irc_volume(String sender, String newVolStr) {
+    public synchronized void irc_volume(String sender, String newVolStr) {
         if(StringUtils.isEmpty(newVolStr)) {
             irc.message(sender + ": current volume is " + volume);
             return;
@@ -354,7 +354,7 @@ public class DjService {
 
     }
 
-    public void irc_songSearch(String sender, String q) {
+    public synchronized void irc_songSearch(String sender, String q) {
 
         if(!sender.equals(streamer) && conf.getQueueSize() > 0 && songList.size() >= conf.getQueueSize()) {
             denySong(sender, "the queue is full at " + conf.getQueueSize());
@@ -429,7 +429,7 @@ public class DjService {
                     continue;
                 }
 
-                if(videoId.equals(currentSong.getVideoId())) {
+                if(currentSong!= null && videoId.equals(currentSong.getVideoId())) {
                     continue;
                 }
 
