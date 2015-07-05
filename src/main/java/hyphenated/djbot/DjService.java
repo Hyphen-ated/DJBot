@@ -593,10 +593,15 @@ public class DjService {
         String nowPlaying;
         if(currentSong != null) {
             nowPlaying = conf.getNowPlayingPattern();
+            if(StringUtils.isBlank(nowPlaying)) {
+                //if there's no pattern to write, just don't do anything
+                return;
+            }
             nowPlaying = nowPlaying.replace("%title%", currentSong.getTitle());
             nowPlaying = nowPlaying.replace("%user%", currentSong.getUser());
             nowPlaying = nowPlaying.replace("%length%", currentSong.buildDurationStr());
         } else {
+            //empty out the file if there's no current song
             nowPlaying = "";
         }
 
