@@ -66,6 +66,7 @@ public class DjIrcBot extends PircBot {
         while(!isConnected()) {
             try {
                 this.connect("irc.twitch.tv", 6667, conf.getTwitchAccessToken());
+                this.sendRawLine("CAP REQ :twitch.tv/membership");
                 this.joinChannel(channel);
             } catch (Exception e) {
                 dj.logger.error("Couldn't connect to twitch irc", e);
