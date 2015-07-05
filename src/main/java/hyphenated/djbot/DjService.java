@@ -590,10 +590,16 @@ public class DjService {
 
     //go write to the filesystem so the user can overlay this text file on their stream if they want
     private void updateNowPlayingFile(SongEntry currentSong) {
-        String nowPlaying = conf.getNowPlayingPattern();
-        nowPlaying = nowPlaying.replace("%title%", currentSong.getTitle());
-        nowPlaying = nowPlaying.replace("%user%", currentSong.getUser());
-        nowPlaying = nowPlaying.replace("%length%", currentSong.buildDurationStr());
+        String nowPlaying;
+        if(currentSong != null) {
+            nowPlaying = conf.getNowPlayingPattern();
+            nowPlaying = nowPlaying.replace("%title%", currentSong.getTitle());
+            nowPlaying = nowPlaying.replace("%user%", currentSong.getUser());
+            nowPlaying = nowPlaying.replace("%length%", currentSong.buildDurationStr());
+        } else {
+            nowPlaying = "";
+        }
+
         try {
             FileUtils.writeStringToFile(new File(nowPlayingFilePath), nowPlaying, false);
         } catch (IOException e) {
