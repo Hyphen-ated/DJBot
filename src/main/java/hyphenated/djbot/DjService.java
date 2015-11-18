@@ -437,7 +437,7 @@ public class DjService {
                     continue;
                 }
 
-                if(idInRecentHistory(videoId)) {
+                if(idIsProhibitedByRecentDaysPolicy(videoId)) {
                     continue;
                 }
 
@@ -735,7 +735,7 @@ public class DjService {
                 return;
             }
 
-            if(!sender.equals(streamer) && idInRecentHistory(youtubeId)) {
+            if(!sender.equals(streamer) && idIsProhibitedByRecentDaysPolicy(youtubeId)) {
                 denySong(sender, "the song \"" + title + "\" has been played in the last " + conf.getRecencyDays() + " days");
                 return;
             }
@@ -988,7 +988,7 @@ public class DjService {
         return count;
     }
 
-    private boolean idInRecentHistory(String id) {
+    private boolean idIsProhibitedByRecentDaysPolicy(String id) {
         int days = conf.getRecencyDays();
         if(days == 0) {
             //feature turned off
