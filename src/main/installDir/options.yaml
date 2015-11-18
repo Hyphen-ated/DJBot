@@ -15,6 +15,10 @@ queueSize: 20
 # if a youtube video has been requested within this many days in the past, don't let it be requested again (0 to turn this feature off)
 recencyDays: 3
 
+# comma-separated list of terms (case-insensitive, each in quotes)
+# any video with any of these terms in the title will ignore the normal recencyDays limit
+recencyDaysBypassTerms: []
+
 # how many songs each viewer can have in the queue at once (0 for unlimited)
 maxSongsPerUser: 2
 

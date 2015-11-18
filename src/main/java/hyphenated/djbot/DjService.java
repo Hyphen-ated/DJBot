@@ -437,7 +437,7 @@ public class DjService {
                     continue;
                 }
 
-                if(idInRecentHistory(videoId)) {
+                if(songIsProhibitedByRecentDaysPolicy(videoId, title)) {
                     continue;
                 }
 
@@ -735,7 +735,7 @@ public class DjService {
                 return;
             }
 
-            if(!sender.equals(streamer) && idInRecentHistory(youtubeId)) {
+            if(!sender.equals(streamer) && songIsProhibitedByRecentDaysPolicy(youtubeId, title)) {
                 denySong(sender, "the song \"" + title + "\" has been played in the last " + conf.getRecencyDays() + " days");
                 return;
             }
@@ -988,12 +988,20 @@ public class DjService {
         return count;
     }
 
-    private boolean idInRecentHistory(String id) {
+    private boolean songIsProhibitedByRecentDaysPolicy(String id, String title) {
         int days = conf.getRecencyDays();
         if(days == 0) {
             //feature turned off
             return false;
         }
+
+        for(String recencyDayBypassTerm : conf.getRecencyDaysBypassTerms()) {
+            if(title.toLowerCase().contains(recencyDayBypassTerm.toLowerCase())) {
+                logger.info("Song " + id + " (" + title + ") ignoring recencyDays policy because it includes bypass term '" + recencyDayBypassTerm + "'");
+                return false;
+            }
+        }
+
         long recencyCutoff = DateTime.now().minusDays(conf.getRecencyDays()).toDate().getTime();
 
         for(SongEntry entry : songHistory) {

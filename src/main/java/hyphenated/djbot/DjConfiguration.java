@@ -14,6 +14,7 @@ public class DjConfiguration extends Configuration {
 
     private int queueSize;
     private int recencyDays;
+    private List<String> recencyDaysBypassTerms;
     private int maxSongsPerUser;
 
     @Min(0)
@@ -75,6 +76,14 @@ public class DjConfiguration extends Configuration {
 
     public void setRecencyDays(int recencyDays) {
         this.recencyDays = recencyDays;
+    }
+
+    public List<String> getRecencyDaysBypassTerms() {
+        return recencyDaysBypassTerms;
+    }
+
+    public void setRecencyDaysBypassTerms(List<String> recencyDaysBypassTerms) {
+        this.recencyDaysBypassTerms = recencyDaysBypassTerms;
     }
 
     public int getMaxSongsPerUser() {
