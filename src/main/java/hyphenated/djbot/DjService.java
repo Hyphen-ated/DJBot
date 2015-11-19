@@ -99,11 +99,7 @@ public class DjService {
             }
 
             if(unplayedSongs.contains(entry.getRequestId())) {
-                if(entry.isBackup()) {
-                    secondarySongList.add(entry);
-                } else {
-                    songList.add(entry);
-                }
+                secondarySongList.add(entry);
             }
             //todo: configure 2 weeks here. or maybe have no cutoff? the point is so when the file gets huge we don't keep operating on the huge thing all day.
             long historyCutoff = DateTime.now().minusWeeks(2).toDate().getTime();
