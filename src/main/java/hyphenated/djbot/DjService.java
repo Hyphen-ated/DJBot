@@ -334,7 +334,7 @@ public class DjService {
             doYoutubeListRequest(sender, listPathId);
             return;
         }
-        irc.message(sender + ": couldn't find a youtube video id in your request");
+        this.irc_songSearch(sender, requestStr);
 
     }
 
