@@ -8,9 +8,15 @@ import hyphenated.djbot.json.CheckResponse;
 import hyphenated.djbot.json.NextResponse;
 import hyphenated.djbot.json.SongEntry;
 import io.dropwizard.auth.Auth;
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.HttpGet;
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 import javax.ws.rs.*;
+import java.io.InputStream;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -23,9 +29,19 @@ public class DjResource {
     //use user tokens on auth-required endpoints to prevent csrf attack
     private Map<String, User> tokenMap = new HashMap<>();
 
-    public DjResource(DjConfiguration conf) {
+    public DjResource(DjConfiguration conf, HttpClient httpClient) {
         publicMode = conf.isDjbotPublic();
-        DjIrcBot irc = new DjIrcBot(conf);
+
+        String host = conf.getTwitchIrcHost();
+        if (StringUtils.isBlank(host)) {
+            try {
+                host = getIrcHostFromTwitch(conf, httpClient);
+            } catch (Exception e) {
+                throw new RuntimeException("Unable to get irc server host from twitch's api. Try setting 'twitchIrcHost' in options.yaml.", e);
+            }
+        }
+
+        DjIrcBot irc = new DjIrcBot(conf, host);
         dj = new DjService(conf, irc);
         irc.setDjService(dj);
         irc.startup();
@@ -34,8 +50,20 @@ public class DjResource {
         dj.nextSong();
     }
 
+
+
     public DjService getDj() {
         return dj;
+    }
+
+    private String getIrcHostFromTwitch(DjConfiguration conf, HttpClient httpClient) throws Exception {
+        String twitchServerInfoUrl = conf.getTwitchChatServerAssignmentUrl().replace("%CHANNEL%", conf.getChannel());
+        HttpGet httpGet = new HttpGet(twitchServerInfoUrl);
+        InputStream resultStream = httpClient.execute(httpGet).getEntity().getContent();
+        String result = IOUtils.toString(resultStream);
+        JSONObject json = new JSONObject(result);
+        JSONArray servers = json.getJSONArray("servers");
+        return servers.getString(0);
     }
 
     private String wrapForJsonp(Object response, String callback) {

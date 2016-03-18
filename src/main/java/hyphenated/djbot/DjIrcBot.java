@@ -14,6 +14,8 @@ public class DjIrcBot extends PircBot {
     private final DjConfiguration conf;
 
     private final String channel;
+    private final String twitchHostName;
+    private final int twitchPort;
 
     final String label_songrequest = "!songrequest";
     final String label_sr = "!sr";
@@ -36,7 +38,7 @@ public class DjIrcBot extends PircBot {
 
     private DjService dj;
 
-    public DjIrcBot(DjConfiguration conf) {
+    public DjIrcBot(DjConfiguration conf, String twitchIrcHost) {
         this.conf = conf;
         this.channel = "#" + conf.getChannel();
         this.setMessageDelay(conf.getMessageDelayMs());
@@ -46,6 +48,17 @@ public class DjIrcBot extends PircBot {
         } catch (UnsupportedEncodingException e) {
             throw new RuntimeException(e);
         }
+        String[] parts = twitchIrcHost.split(":");
+        if(parts.length != 2) {
+            throw new RuntimeException("Twitch irc host '" + twitchIrcHost + "' should have exactly one colon in it, for the port number");
+        }
+        twitchHostName = parts[0];
+        try {
+            twitchPort = Integer.parseInt(parts[1]);
+        } catch (NumberFormatException e) {
+            throw new RuntimeException("The port for the twitch irc host is '" + parts[1] + "', but that's not a valid port number");
+        }
+
     }
 
 
@@ -65,7 +78,7 @@ public class DjIrcBot extends PircBot {
         }
         while(!isConnected()) {
             try {
-                this.connect("irc.twitch.tv", 6667, conf.getTwitchAccessToken());
+                this.connect(this.twitchHostName, this.twitchPort, conf.getTwitchAccessToken());
                 this.sendRawLine("CAP REQ :twitch.tv/membership");
                 this.joinChannel(channel);
             } catch (Exception e) {

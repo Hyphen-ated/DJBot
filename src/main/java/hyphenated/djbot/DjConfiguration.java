@@ -1,9 +1,14 @@
 package hyphenated.djbot;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import io.dropwizard.Configuration;
+import io.dropwizard.client.HttpClientConfiguration;
+import io.dropwizard.client.JerseyClientConfiguration;
 import org.hibernate.validator.constraints.NotEmpty;
 
+import javax.validation.Valid;
 import javax.validation.constraints.Min;
+import javax.validation.constraints.NotNull;
 import java.util.List;
 import java.util.Locale;
 
@@ -45,6 +50,14 @@ public class DjConfiguration extends Configuration {
     private boolean isDjbotPublic;
     private String adminUsername;
     private String adminPassword;
+
+    private String twitchChatServerAssignmentUrl;
+    private String twitchIrcHost;
+
+    @Valid
+    @NotNull
+    @JsonProperty
+    private HttpClientConfiguration httpClient = new HttpClientConfiguration();
 
 
     //this should be the channel name without the # at the front. (the same as the streamer's twitch account name)
@@ -260,5 +273,29 @@ public class DjConfiguration extends Configuration {
 
     public void setAdminPassword(String adminPassword) {
         this.adminPassword = adminPassword;
+    }
+
+    public String getTwitchChatServerAssignmentUrl() {
+        return twitchChatServerAssignmentUrl;
+    }
+
+    public void setTwitchChatServerAssignmentUrl(String twitchChatServerAssignmentUrl) {
+        this.twitchChatServerAssignmentUrl = twitchChatServerAssignmentUrl;
+    }
+
+    public String getTwitchIrcHost() {
+        return twitchIrcHost;
+    }
+
+    public void setTwitchIrcHost(String twitchIrcHost) {
+        this.twitchIrcHost = twitchIrcHost;
+    }
+
+    public HttpClientConfiguration getHttpClientConfiguration() {
+        return httpClient;
+    }
+
+    public void setHttpClient(JerseyClientConfiguration httpClient) {
+        this.httpClient = httpClient;
     }
 }

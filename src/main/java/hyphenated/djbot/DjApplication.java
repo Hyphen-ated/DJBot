@@ -7,9 +7,11 @@ import io.dropwizard.Application;
 import io.dropwizard.assets.AssetsBundle;
 import io.dropwizard.auth.AuthFactory;
 import io.dropwizard.auth.basic.BasicAuthFactory;
+import io.dropwizard.client.HttpClientBuilder;
 import io.dropwizard.setup.Bootstrap;
 import io.dropwizard.setup.Environment;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.http.client.HttpClient;
 
 import java.io.File;
 import java.io.PrintStream;
@@ -44,10 +46,16 @@ public class DjApplication extends Application<DjConfiguration> {
     @Override
     public void run(DjConfiguration configuration,
                     Environment environment) {
-        DjResource resource = new DjResource(configuration);
+
+        final HttpClient client = new HttpClientBuilder(environment).using(configuration.getHttpClientConfiguration())
+                .build("http-client");
+
+        DjResource resource = new DjResource(configuration, client);
         environment.jersey().register(resource);
 
         final ChannelCheck channelCheck = new ChannelCheck(resource);
+
+
 
         if(configuration.isDjbotPublic()) {
             String adminUsername = configuration.getAdminUsername();
