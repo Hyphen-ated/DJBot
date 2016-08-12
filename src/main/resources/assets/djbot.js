@@ -1,12 +1,30 @@
-urlPrefix = window.location.origin
-playingVideo = false;
-currentlyPlayingRequestId = 0;
-waitingOnNext = false;
-currentVolume = 30;
-usingAuth = false;
-currentUser = null;
-userToken = null;
+var urlPrefix = window.location.origin
+var playingVideo = false;
+var currentlyPlayingRequestId = 0;
+var waitingOnNext = false;
+var currentVolume = 30;
+var usingAuth = false;
+var currentUser = null;
+var userToken = null;
+var player;
 
+//youtube api requires a function with exactly this name. it calls this once after page load
+function onYouTubeIframeAPIReady() {
+    player = new YT.Player('musicPlayer', {
+      width: '600',
+      height: '400',
+      events: {
+          'onError': onYoutubeError
+      }
+    });
+}
+
+function onYoutubeError(event) {
+    if(event.data == 100 || event.data == 101 || event.data == 150) {
+        //not found, or not allowed to be embedded. hopefully the dj server checked for this, but if not, we skip it now.
+        nextSong(true);
+    }
+}
 
 $.ajax({
         dataType: 'json',
@@ -54,17 +72,18 @@ function login() {
 }
 
 function loadSong(youtubeId, requestId, startTime) {
-    var params = { allowScriptAccess: "always"};
-    //switch to this one for no player controls in the embed
-    //swfobject.embedSWF("https://www.youtube.com/apiplayer?video_id="+youtubeId+"&version=3&feature=player_embedded&autoplay=1&controls=1&enablejsapi=1&modestbranding=0&rel=0&showinfo=1&autohide=0&color=white&playerapiid=musicPlayer&iv_load_policy=3", "musicPlayer", "600", "400", "8", null, null, params);
-    swfobject.embedSWF("https://www.youtube.com/v/"+youtubeId+"?autoplay=1&start="+startTime+"&controls=1&enablejsapi=0&iv_load_policy=3&playerapiid=musicPlayer", "musicPlayer", "600", "400", "8", null, null, params, null);
+    player.loadVideoById({
+        'videoId': youtubeId,
+        'startSeconds': startTime,
+        'suggestedQuality': 'large'
+    });
+
     playingVideo = true;
     currentlyPlayingRequestId = requestId;
 }
 
 
 function playpause() {
-    var player = document.getElementById('musicPlayer');
     if(player.getPlayerState() !== 1) {
         player.playVideo();
     } else {
@@ -73,7 +92,7 @@ function playpause() {
     }
 }
 
-function applyVolumeChange(player, vol) {
+function applyVolumeChange(vol) {
     currentVolume = vol;
     //youtube volume is linear, switch to a log scale so volume 10->20 is similar to 80->90
     var youtubeVol = Math.pow(Math.E, vol * 0.04605);
@@ -81,11 +100,10 @@ function applyVolumeChange(player, vol) {
 }
 
 function changevol(delta) {
-    var player = document.getElementById('musicPlayer');
     var newvol = currentVolume + delta;
     if(newvol > 100) newvol = 100;
     if(newvol < 10) newvol = 10;
-    applyVolumeChange(player, newvol);
+    applyVolumeChange(newvol);
     if(userToken || !usingAuth) {
         $.ajax({
                 dataType: 'json',
@@ -121,7 +139,6 @@ function nextSong(skip) {
 
             }
             if(!itWorked) {
-                var player = document.getElementById('musicPlayer');
                 if(player.getPlayerState() !== 0) {
                     //make the video end even if we got nothing from the server
                     player.seekTo(99999);
@@ -153,8 +170,6 @@ function update() {
         return;
     }
 
-    var player = document.getElementById('musicPlayer');
-
     if(justStarted) {
         loadCurrentSong();
         waitingOnNext = true;
@@ -178,9 +193,8 @@ function update() {
         url: urlPrefix + '/djbot/check?callback=?',
         success: function(data) {
             if(data) {
-                var player = document.getElementById('musicPlayer');
                 if(!usingAuth || document.getElementById('trackVolume').checked) {
-                    applyVolumeChange(player, data.volume);
+                    applyVolumeChange(data.volume);
                 }
 
                 if(data.currentSongId !== 0 && data.currentSongId !== currentlyPlayingRequestId) {
