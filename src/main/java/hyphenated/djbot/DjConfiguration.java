@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.dropwizard.Configuration;
 import io.dropwizard.client.HttpClientConfiguration;
 import io.dropwizard.client.JerseyClientConfiguration;
+import io.dropwizard.db.DataSourceFactory;
 import org.hibernate.validator.constraints.NotEmpty;
 
 import javax.validation.Valid;
@@ -59,6 +60,8 @@ public class DjConfiguration extends Configuration {
     @JsonProperty
     private HttpClientConfiguration httpClient = new HttpClientConfiguration();
 
+
+    private DataSourceFactory database = new DataSourceFactory();
 
     //this should be the channel name without the # at the front. (the same as the streamer's twitch account name)
     public String getChannel() {
@@ -297,5 +300,15 @@ public class DjConfiguration extends Configuration {
 
     public void setHttpClient(JerseyClientConfiguration httpClient) {
         this.httpClient = httpClient;
+    }
+
+    @JsonProperty("database")
+    public void setDataSourceFactory(DataSourceFactory factory) {
+        this.database = factory;
+    }
+
+    @JsonProperty("database")
+    public DataSourceFactory getDataSourceFactory() {
+        return database;
     }
 }

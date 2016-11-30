@@ -2,16 +2,19 @@ package hyphenated.djbot;
 
 import hyphenated.djbot.auth.ConfiguredUserAuthenticator;
 import hyphenated.djbot.auth.User;
+import hyphenated.djbot.db.SongQueueDAO;
 import hyphenated.djbot.health.ChannelCheck;
 import io.dropwizard.Application;
 import io.dropwizard.assets.AssetsBundle;
 import io.dropwizard.auth.AuthFactory;
 import io.dropwizard.auth.basic.BasicAuthFactory;
 import io.dropwizard.client.HttpClientBuilder;
+import io.dropwizard.jdbi.DBIFactory;
 import io.dropwizard.setup.Bootstrap;
 import io.dropwizard.setup.Environment;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.client.HttpClient;
+import org.skife.jdbi.v2.DBI;
 
 import java.io.File;
 import java.io.PrintStream;
@@ -50,7 +53,12 @@ public class DjApplication extends Application<DjConfiguration> {
         final HttpClient client = new HttpClientBuilder(environment).using(configuration.getHttpClientConfiguration())
                 .build("http-client");
 
-        DjResource resource = new DjResource(configuration, client);
+        final DBIFactory factory = new DBIFactory();
+        final DBI jdbi = factory.build(environment, configuration.getDataSourceFactory(), "postgresql");
+        final SongQueueDAO dao = jdbi.onDemand(SongQueueDAO.class);
+        dao.ensureTables();
+
+        DjResource resource = new DjResource(configuration, client, dao);
         environment.jersey().register(resource);
 
         final ChannelCheck channelCheck = new ChannelCheck(resource);

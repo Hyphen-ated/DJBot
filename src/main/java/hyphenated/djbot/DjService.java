@@ -2,6 +2,7 @@ package hyphenated.djbot;
 
 import com.dropbox.core.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import hyphenated.djbot.db.SongQueueDAO;
 import hyphenated.djbot.json.SongEntry;
 import org.apache.commons.httpclient.HttpClient;
 import org.apache.commons.httpclient.methods.GetMethod;
@@ -30,13 +31,12 @@ import java.util.regex.Pattern;
 public class DjService {
     public Logger logger = LoggerFactory.getLogger("hyphenated.djbot");
 
-    private final String queueHistoryFilePath = "queue.json";
-    private final String unplayedSongsFilePath = "unplayedSongs.json";
     private final String nowPlayingFilePath = "nowPlayingInfo.txt";
     private final String dboxFilePath = "/Public/songlist.txt";
 
     private final DjConfiguration conf;
     private final DjIrcBot irc;
+    private final SongQueueDAO dao;
 
     private volatile SongEntry currentSong;
     private volatile ArrayList<SongEntry> songList = new ArrayList<>();
@@ -57,14 +57,56 @@ public class DjService {
     private Set<String> blacklistedYoutubeIds; //immutable after creation
 
 
-    public DjService(DjConfiguration newConf, DjIrcBot irc) {
+    public DjService(DjConfiguration newConf, DjIrcBot irc, SongQueueDAO dao) {
         this.conf = newConf;
         this.streamer = conf.getChannel();
         this.volume = conf.getDefaultVolume();
         this.irc = irc;
+        this.dao = dao;
 
+        moveLegacySongsJsonToDb();
 
+        long historyCutoff = DateTime.now().minusWeeks(2).toDate().getTime();
+        songHistory = new ArrayList(dao.getSongsAfterDate(historyCutoff));
+        secondarySongList = new ArrayList(dao.getSongsToPlay());
+
+        this.nextRequestId = dao.getHighestId() + 1;
+
+        dropboxLink = determineDropboxLink(conf);
+
+        HashSet<String> blacklist = new HashSet<>();
+        if(conf.getBlacklistedYoutubeIds() != null) {
+            blacklist.addAll(conf.getBlacklistedYoutubeIds());
+        }
+        this.blacklistedYoutubeIds = Collections.unmodifiableSet(blacklist);
+
+        //create the scrollable console gui window
+        javax.swing.SwingUtilities.invokeLater(new Runnable() {
+            public void run() {
+                GuiWindow.createAndShowGUI(conf.getMaxConsoleLines());
+            }
+        });
+
+    }
+
+    //djbot used to use these two files to hold queue data. now it uses sqlite.
+    //this is a migration to go from the files to the db.
+    private final String queueHistoryFilePath = "queue.json";
+    private final String unplayedSongsFilePath = "unplayedSongs.json";
+    private void moveLegacySongsJsonToDb() {
         List<String> history = null;
+        File queueHistoryFile = new File(queueHistoryFilePath);
+        File unplayedSongsFile = new File(unplayedSongsFilePath);
+
+        if(!(queueHistoryFile.exists()))
+            return;
+
+        if(!(unplayedSongsFile.exists()))
+            return;
+
+        logger.info("Found old-style song queue files at '" + queueHistoryFilePath + "' and '" + unplayedSongsFilePath +
+                "'. We're adding them to a database and then renaming the files to end in .old");
+
         try {
             history = IOUtils.readLines(new FileInputStream(queueHistoryFilePath), "utf-8");
         } catch (IOException e) {
@@ -88,8 +130,8 @@ public class DjService {
         HashSet<Integer> unplayedSongs = new HashSet<>();
         unplayedSongs.addAll(unplayedSongsList);
 
-        int lastRequestId = 0;
         int lineNumber = 1;
+        ArrayList<SongEntry> entries = new ArrayList<>();
         for(String historyElement : history) {
             SongEntry entry = null;
             try {
@@ -98,36 +140,19 @@ public class DjService {
                 throw new RuntimeException("File at " + queueHistoryFilePath + " has a problem at line " + lineNumber + ": the line won't parse to a json object with the right format.", e);
             }
 
-            if(unplayedSongs.contains(entry.getRequestId())) {
-                secondarySongList.add(entry);
-            }
-            //todo: configure 2 weeks here. or maybe have no cutoff? the point is so when the file gets huge we don't keep operating on the huge thing all day.
-            long historyCutoff = DateTime.now().minusWeeks(2).toDate().getTime();
-            if(entry.getRequestTime() > historyCutoff ) {
-                songHistory.add(entry);
-            }
-
-            lastRequestId = Math.max(lastRequestId, entry.getRequestId());
-            ++lineNumber;
+            entries.add(entry);
         }
+        dao.addSongs(entries.iterator());
 
-        this.nextRequestId = lastRequestId + 1;
-
-        dropboxLink = determineDropboxLink(conf);
-
-        HashSet<String> blacklist = new HashSet<>();
-        if(conf.getBlacklistedYoutubeIds() != null) {
-            blacklist.addAll(conf.getBlacklistedYoutubeIds());
+        for(int id : unplayedSongs) {
+            dao.setSongToBePlayed(id, true);
         }
-        this.blacklistedYoutubeIds = Collections.unmodifiableSet(blacklist);
-
-        //create the scrollable console gui window
-        javax.swing.SwingUtilities.invokeLater(new Runnable() {
-            public void run() {
-                GuiWindow.createAndShowGUI(conf.getMaxConsoleLines());
-            }
-        });
-
+        try {
+            FileUtils.moveFile(queueHistoryFile, new File(queueHistoryFilePath + ".old"));
+            FileUtils.moveFile(unplayedSongsFile, new File(unplayedSongsFilePath + ".old"));
+        } catch (Exception e) {
+            logger.error("Ran into an error while trying to rename the now-obsolete queue files", e);
+        }
     }
 
     private String determineDropboxLink(DjConfiguration conf) {
@@ -177,6 +202,7 @@ public class DjService {
         removeSongFromList(secondarySongList, skipId, sender, isMod);
 
         try {
+            dao.setSongToBePlayed(skipId, false);
             updatePlayedSongsFile();
         } catch (IOException e) {
             logger.error("problem updating playedSongs", e);
@@ -453,6 +479,7 @@ public class DjService {
             }
         } catch (Exception e) {
             denySong(sender, "I had a problem trying to run that search");
+            logger.debug("Exception while running search '" + q + "'", e);
             return;
         }
         //if we get here, it means none of the songs in the results were okay
@@ -555,22 +582,6 @@ public class DjService {
     }
 
     private void updatePlayedSongsFile() throws IOException {
-        //update the list of what songs have been played. anything currently playing or in a queue has not "been played"
-        ArrayList<Integer> unplayedSongs = new ArrayList<>();
-        if(currentSong != null) {
-            unplayedSongs.add(currentSong.getRequestId());
-        }
-        for (SongEntry song : songList) {
-            unplayedSongs.add(song.getRequestId());
-        }
-        for (SongEntry song : secondarySongList) {
-            unplayedSongs.add(song.getRequestId());
-        }
-
-        ObjectMapper mapper = new ObjectMapper();
-        String unplayedSongsJson = mapper.writeValueAsString(unplayedSongs);
-        FileUtils.writeStringToFile(new File(this.unplayedSongsFilePath), unplayedSongsJson, "utf-8");
-
 
         //send file to dropbox
         DbxClient client = getDbxClient();
@@ -823,10 +834,7 @@ public class DjService {
             songList.add(newSong);
         }
 
-
-
-        String songJson = mapper.writeValueAsString(newSong);
-        FileUtils.writeStringToFile(new File(this.queueHistoryFilePath), songJson + "\n", "utf-8", true);
+        dao.addSong(newSong, true);
 
         updatePlayedSongsFile();
     }
@@ -1022,6 +1030,7 @@ public class DjService {
         if(currentSong != null) {
             lastPlayedSongs.add(currentSong);
             songHistory.add(currentSong);
+            dao.setSongToBePlayed(currentSong.getRequestId(), false);
         }
 
         if(lastPlayedSongs.size() > conf.getSonglistHistoryLength()) {
@@ -1072,6 +1081,14 @@ public class DjService {
 
     public int getVolume() {
         return volume;
+    }
+
+    public void likeSong() {
+        SongEntry likedSong = currentSong;
+        if(likedSong == null) {
+            likedSong = songHistory.get(songHistory.size() - 1);
+        }
+
     }
 
     public synchronized DjState getStateRepresentation() {

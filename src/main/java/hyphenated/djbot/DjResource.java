@@ -2,6 +2,7 @@ package hyphenated.djbot;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import hyphenated.djbot.db.SongQueueDAO;
 import hyphenated.djbot.json.LoginInfo;
 import hyphenated.djbot.auth.User;
 import hyphenated.djbot.json.CheckResponse;
@@ -29,7 +30,7 @@ public class DjResource {
     //use user tokens on auth-required endpoints to prevent csrf attack
     private Map<String, User> tokenMap = new HashMap<>();
 
-    public DjResource(DjConfiguration conf, HttpClient httpClient) {
+    public DjResource(DjConfiguration conf, HttpClient httpClient, SongQueueDAO dao) {
         publicMode = conf.isDjbotPublic();
 
         String host = conf.getTwitchIrcHost();
@@ -42,7 +43,7 @@ public class DjResource {
         }
 
         DjIrcBot irc = new DjIrcBot(conf, host);
-        dj = new DjService(conf, irc);
+        dj = new DjService(conf, irc, dao);
         irc.setDjService(dj);
         irc.startup();
 
