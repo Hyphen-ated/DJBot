@@ -1088,7 +1088,7 @@ public class DjService {
         if(likedSong == null) {
             likedSong = songHistory.get(songHistory.size() - 1);
         }
-
+        dao.setSongLiked(likedSong.getRequestId(), true);
     }
 
     public synchronized DjState getStateRepresentation() {

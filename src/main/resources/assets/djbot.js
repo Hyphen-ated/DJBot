@@ -41,34 +41,34 @@ $.ajax({
     })
 
 $(document).keydown(function(event){
-    if(event.keyCode === 38 && event.altKey) {
+    if(event.keyCode === 38 && event.altKey && event.ctrlKey) {
+        like();
+    } else if(event.keyCode === 38 && event.altKey) {
         changevol(10);
-    }
-    if(event.keyCode === 40 && event.altKey) {
+    } else if(event.keyCode === 40 && event.altKey) {
         changevol(-10);
-    }
-    if(event.keyCode === 39 && event.altKey) {
+    } else if(event.keyCode === 39 && event.altKey) {
         nextSong(true);
     }
 });
 
 function login() {
     $.ajax({
-            dataType: 'json',
-            url: urlPrefix + '/djbot/login?callback=?',
-            success: function(data) {
-                if(data.username) {
-                    currentUser = data.username;
-                    userToken = data.userToken;
-                    $("#user").html("user: " + currentUser);
-                    document.getElementById("nextButton").style.visibility = "visible";
-                    document.getElementById("volumeCheckbox").style.visibility = "visible";
-                    document.getElementById("trackVolume").checked = true;
-                } else {
-                    $("#user").html("not logged in");
-                }
+        dataType: 'json',
+        url: urlPrefix + '/djbot/login?callback=?',
+        success: function(data) {
+            if(data.username) {
+                currentUser = data.username;
+                userToken = data.userToken;
+                $("#user").html("user: " + currentUser);
+                document.getElementById("nextButton").style.visibility = "visible";
+                document.getElementById("volumeCheckbox").style.visibility = "visible";
+                document.getElementById("trackVolume").checked = true;
+            } else {
+                $("#user").html("not logged in");
             }
-        })
+        }
+    })
 }
 
 function loadSong(youtubeId, requestId, startTime) {
@@ -80,6 +80,7 @@ function loadSong(youtubeId, requestId, startTime) {
 
     playingVideo = true;
     currentlyPlayingRequestId = requestId;
+    $("#likeArea").hide();
 }
 
 
@@ -115,17 +116,22 @@ function changevol(delta) {
     }
 }
 
+var doingNext = false;
 function nextSong(skip) {
+    if(doingNext)
+        return;
+
     if(skip) {
         var maybeSkipped = "skip=true&";
     } else {
         var maybeSkipped = "";
     }
-
+    doingNext = true;
     $.ajax({
         dataType: 'json',
         url: urlPrefix + '/djbot/next?'+maybeSkipped+'currentId=' + currentlyPlayingRequestId + '&userToken=' + userToken + '&callback=?',
         success: function(data) {
+            doingNext = false;
             waitingOnNext = false;
             var itWorked = false;
             if( data && data.status === 'success') {
@@ -203,6 +209,17 @@ function update() {
                     loadCurrentSong();
                 }
             }
+        }
+    })
+
+}
+
+function like() {
+    $.ajax({
+        dataType: 'json',
+        url: urlPrefix + '/djbot/like',
+        success: function(data) {
+            $("#likeArea").fadeIn(300);
         }
     })
 

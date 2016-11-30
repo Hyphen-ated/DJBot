@@ -208,5 +208,15 @@ public class DjResource {
 
     }
 
+    @GET
+    @Path("like")
+    @Produces("application/json")
+    public String webLike(@QueryParam("callback") String callback, @QueryParam("userToken") String userToken) throws Exception {
+        validateUserToken(userToken);
+        dj.likeSong();
+        return wrapForJsonp(true, callback);
+
+    }
+
 
 }
