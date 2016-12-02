@@ -1089,6 +1089,8 @@ public class DjService {
             likedSong = songHistory.get(songHistory.size() - 1);
         }
         dao.setSongLiked(likedSong.getRequestId(), true);
+        //TODO: make this message configurable
+        irc.message("The streamer liked a song. +1 point for " + likedSong.getUser());
     }
 
     public synchronized DjState getStateRepresentation() {
