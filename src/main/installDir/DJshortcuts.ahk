@@ -1,6 +1,5 @@
 ; This is an AutoHotKey script to control the djbot
 ; I like using the numpad, feel free to change it to whatever keys you want
-; If you want the djbot window to remain in the foreground, remove "Send, !{Esc}" before each return
 
 SetTitleMatchMode, 1
 
@@ -10,6 +9,7 @@ IfWinExist, DJbot interface
 	WinActivate
 	Sleep 30
 	Send, !{Up}
+	Send, !{Esc}
 	return
 }
 
@@ -19,6 +19,7 @@ IfWinExist, DJbot interface
 	WinActivate
 	Sleep 30
 	Send, !{Down}
+	Send, !{Esc}
 	return
 }
 
@@ -28,6 +29,7 @@ IfWinExist, DJbot interface
 	WinActivate
 	Sleep 30
 	Send, !{Right}
+	Send, !{Esc}
 	return
 }
 
@@ -37,6 +39,7 @@ IfWinExist, DJbot interface - Google Chrome
 	WinActivate
 	Sleep 30
 	Send, ^!{Up}
+	Send, !{Esc}
 	return
 }
 
