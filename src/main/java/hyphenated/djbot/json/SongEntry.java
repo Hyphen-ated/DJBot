@@ -121,7 +121,10 @@ public class SongEntry {
 
 
     public String buildYoutubeUrl() {
-        return "http://www.youtube.com/watch?v=" + videoId;
+        if (videoId.charAt(0) == '/')
+            return "https://soundcloud.com" + videoId;
+        else
+            return "http://www.youtube.com/watch?v=" + videoId;
     }
 
     public String buildDurationStr() {

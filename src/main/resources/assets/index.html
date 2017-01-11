@@ -2,6 +2,7 @@
 <html>
 <head><title>DJbot interface</title></head>
 <script type="text/javascript" src="https://www.youtube.com/iframe_api"></script>
+<script src="https://w.soundcloud.com/player/api.js" type="text/javascript"></script>
 <script type='text/javascript' src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.0/jquery.min.js"></script>
 
 <script src='/djbot/ui/djbot.js'></script>
@@ -17,6 +18,7 @@
     <div id="musicHolder">
         <div id="musicPlayer" />
     </div>
+	<iframe id="sc-widget" onload="setupWidget()" width="600" src="https://w.soundcloud.com/player/?url=http%3A%2F%2Fapi.soundcloud.com%2Ftracks%2F1848538&show_artwork=true"></iframe>
     <div id="buttons">
         <button onclick="playpause()">Play/pause</button>
         <button id="nextButton" onclick="nextSong(true)">Next</button>

@@ -21,6 +21,9 @@ import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.net.URLEncoder;
 import java.util.*;
 import java.util.regex.Matcher;
@@ -332,6 +335,21 @@ public class DjService {
         if(listPathIndex > -1) {
             String listPathId = requestStr.substring(listPathIndex + listPathVar.length());
             doYoutubeListRequest(sender, listPathId);
+            return;
+        }
+
+        //we support soundcloud links like https://soundcloud.com/<creator/song>
+        if (requestStr.trim().charAt(0) == '/') requestStr = requestStr.replaceFirst("/", ""); //this may be unecessary
+        String attributes = getAttributes(requestStr);
+        if(attributes != null) {
+            doSoundcloudRequest(sender, attributes, startSeconds);
+            return;
+        }
+
+        //we support soundcloud requests like <creator/song>
+        attributes = getAttributes("https://soundcloud.com/" + requestStr);
+        if(attributes != null) {
+            doSoundcloudRequest(sender, attributes, startSeconds);
             return;
         }
         this.irc_songSearch(sender, requestStr);
@@ -760,6 +778,99 @@ public class DjService {
             denySong(sender, "I had an error while trying to add that song");
             return;
         }
+    }
+
+    private void doSoundcloudRequest(String sender, String attributes, int startSeconds) {
+        updateQueuesForLeavers();
+
+        String soundcloudId = parseText(attributes, "permalink_url").replaceFirst("https://soundcloud.com", "");
+
+        if(blacklistedYoutubeIds.contains(soundcloudId)) {
+            denySong(sender, "that song is blacklisted by the streamer");
+            return;
+        }
+
+
+
+        try {
+
+            int durationSeconds = Integer.parseInt(parseNumerical(attributes, "duration")) / 1000;
+            String title = parseText(attributes, "title");
+
+            if(!sender.equals(streamer) && durationSeconds / 60.0 > songLengthAllowedMinutes()) {
+                denySong(sender, "the song is over " + songLengthAllowedMinutes() + " minutes");
+                return;
+            }
+
+            if(!sender.equals(streamer) && conf.getQueueSize() > 0 && songList.size() >= conf.getQueueSize()) {
+                denySong(sender, "the queue is full at " + conf.getQueueSize());
+                return;
+            }
+
+            if(currentSong != null && soundcloudId.equals(currentSong.getVideoId())) {
+                denySong(sender, "the song \"" + title + "\" is currently playing");
+                return;
+            }
+
+            if(idCountInMainList(soundcloudId) > 0) {
+                denySong(sender, "the song \"" + title + "\" is already in the queue");
+                return;
+            }
+
+            if(!sender.equals(streamer) && songIsProhibitedByRecentDaysPolicy(soundcloudId, title)) {
+                denySong(sender, "the song \"" + title + "\" has been played in the last " + conf.getRecencyDays() + " days");
+                return;
+            }
+
+            if(!sender.equals(streamer) && conf.getMaxSongsPerUser() > 0 && senderCount(sender) >= conf.getMaxSongsPerUser()) {
+                denySong(sender, "you have " + conf.getMaxSongsPerUser() + " songs in the queue already");
+                return;
+            }
+
+            if(!sender.equals(streamer) && moveToPrimaryIfSongInSecondary(soundcloudId)) {
+                irc.message(sender + ": bumping \"" + title + "\" to main queue" );
+                return;
+            }
+
+            //this will cause a redundant looking double message if "up next" messages are enabled and there is no song playing.
+            //but that's better than the alternative of missing the message entirely if no songs are playing at all and the player is not open
+            //(which is a common scenario when someone first sets up their bot)
+            irc.message(sender + ": added \"" + title + "\" to queue. id: " + nextRequestId);
+
+            SongEntry newSong = new SongEntry(title, soundcloudId, nextRequestId, sender, new Date().getTime(), durationSeconds, false, startSeconds);
+            addSongToQueue(sender, newSong);
+
+
+        } catch (NumberFormatException | IOException e) {
+            logger.error("Problem with soundcloud request \"" + soundcloudId + "\"", e);
+            denySong(sender, "I had an error while trying to add that song");
+        }
+    }
+
+    private String getAttributes(String songURL) {
+        String attributes = null;
+        try {
+            URL url = new URL("https://w.soundcloud.com/player/?url=" + songURL);
+            InputStream is = url.openStream();
+            StringBuilder buffer = new StringBuilder();
+            int ptr;
+            while ((ptr = is.read()) != -1) {
+                buffer.append((char) ptr);
+            }
+
+            attributes = buffer.toString().split(",\"data\":\\[")[1].split("\\]\\}\\],")[0].replace(",", ",\n");
+        } catch (MalformedURLException ex) {
+        } catch (IOException ex) {
+        }
+        return attributes;
+    }
+    
+    private String parseText(String attributes, String variable) {
+        return attributes.split("\"" + variable + "\":\"")[1].split("\",\n\"")[0];
+    }
+    
+    private String parseNumerical(String attributes, String variable) {
+        return attributes.split("\"" + variable + "\":")[1].split(",\n\"")[0];
     }
 
     private JSONObject getJsonForYoutubeId(String youtubeId) throws Exception {
