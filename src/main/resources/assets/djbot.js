@@ -129,13 +129,11 @@ function playpause() {
 			player.pauseVideo();
 		}
 	} else {
-		soundcloudWidget.isPaused(function(soundcloudPauseStatus) {
-			if (paused) {
-				soundcloudWidget.play();
-			} else {
-				soundcloudWidget.pause();
-			}
-		});
+        if (paused) {
+            soundcloudWidget.play();
+        } else {
+            soundcloudWidget.pause();
+        }
 	}
 	paused = !paused;
 }
@@ -179,6 +177,9 @@ function nextSong(skip) {
 
     waitingOnNext = true;
 
+    player.seekTo(99999);
+    soundcloudWidget.seekTo(600000);
+
     if(skip) {
         var maybeSkipped = "skip=true&";
     } else {
@@ -201,17 +202,6 @@ function nextSong(skip) {
                     itWorked = true;
                 }
 
-            }
-            if(!itWorked) {
-                //make the song end even if we got no next song from the server
-                if(player.getPlayerState() !== 0) {
-                    player.seekTo(99999);
-                }
-				soundcloudWidget.getPosition(function(position) {
-					if (position !== 0) {
-						soundcloudWidget.seekTo(600000);
-					}
-				});
             }
         }
     })
