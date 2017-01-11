@@ -2,6 +2,7 @@ package hyphenated.djbot;
 
 import com.dropbox.core.*;
 import com.dropbox.core.v2.DbxClientV2;
+import com.dropbox.core.v2.files.WriteMode;
 import com.dropbox.core.v2.sharing.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import hyphenated.djbot.db.SongQueueDAO;
@@ -600,7 +601,7 @@ public class DjService {
         try {
             String dboxContents = buildReportString();
             byte[] contentBytes = dboxContents.getBytes("utf-8");
-            client.files().upload(dboxFilePath).uploadAndFinish(new ByteArrayInputStream(contentBytes));
+            client.files().uploadBuilder(dboxFilePath).withMode(WriteMode.OVERWRITE).uploadAndFinish(new ByteArrayInputStream(contentBytes));
         } catch (DbxException e) {
             logger.error("Problem talking to dropbox to update the songlist", e);
         }
