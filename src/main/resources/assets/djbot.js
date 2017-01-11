@@ -84,11 +84,13 @@ function login() {
 }
 
 function loadSong(youtubeId, requestId, startTime) {
-    player.loadVideoById({
-        'videoId': youtubeId,
-        'startSeconds': startTime,
-        'suggestedQuality': 'large'
-    });
+    if (youtubeId.charAt(0) !== '/') {
+        useYoutubePlayer = true;
+        player.loadVideoById({
+            'videoId': youtubeId,
+            'startSeconds': startTime,
+            'suggestedQuality': 'large'
+        });
 
 		playingVideo = true;
 	} else {
