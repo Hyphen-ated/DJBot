@@ -172,7 +172,7 @@ function loadCurrentSong() {
 
 
 function update() {
-    if(waitingOnNext) {
+    if(waitingOnNext || doingNext) {
         return;
     }
 
