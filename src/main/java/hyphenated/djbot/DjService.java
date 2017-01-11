@@ -377,21 +377,27 @@ public class DjService {
         }
 
         //we support soundcloud links like https://soundcloud.com/<creator/song>
-        if (requestStr.trim().charAt(0) == '/') requestStr = requestStr.replaceFirst("/", ""); //this may be unecessary
-        String attributes = getAttributes(requestStr);
-        if(attributes != null) {
-            doSoundcloudRequest(sender, attributes, startSeconds);
+        if (requestStr.startsWith("https://soundcloud.com/")) {
+            doSoundcloudRequest(sender, requestStr, startSeconds);
             return;
         }
 
-        //we support soundcloud requests like <creator/song>
-        attributes = getAttributes("https://soundcloud.com/" + requestStr);
-        if(attributes != null) {
-            doSoundcloudRequest(sender, attributes, startSeconds);
-            return;
-        }
         this.irc_songSearch(sender, requestStr);
 
+    }
+
+    public synchronized void irc_soundcloud(String sender, String requestStr) {
+        if(StringUtils.isBlank(requestStr)) {
+            denySong(sender, "you didn't provide a soundcloud URL (or just the part after soundcloud.com/ )");
+            return;
+        }
+        int startSeconds = extractStartSecondsFromTimeParam(requestStr);
+
+        String url = requestStr;
+        if(! requestStr.startsWith("https://soundcloud.com/")) {
+           url = "https://soundcloud.com/" + url;
+        }
+        doSoundcloudRequest(sender, url, startSeconds);
     }
 
     //remove the last song someone added
@@ -803,9 +809,13 @@ public class DjService {
         }
     }
 
-    private void doSoundcloudRequest(String sender, String attributes, int startSeconds) {
+    private void doSoundcloudRequest(String sender, String requestStr, int startSeconds) {
         updateQueuesForLeavers();
-
+        String attributes = getSoundcloudAttributes(requestStr);
+        if(attributes == null) {
+            denySong(sender, "I couldn't get info about that song from soundcloud");
+            return;
+        }
         String soundcloudId = parseText(attributes, "permalink_url").replaceFirst("https://soundcloud.com", "");
 
         if(blacklistedYoutubeIds.contains(soundcloudId)) {
@@ -870,7 +880,7 @@ public class DjService {
         }
     }
 
-    private String getAttributes(String songURL) {
+    private String getSoundcloudAttributes(String songURL) {
         String attributes = null;
         try {
             URL url = new URL("https://w.soundcloud.com/player/?url=" + songURL);
@@ -882,8 +892,8 @@ public class DjService {
             }
 
             attributes = buffer.toString().split(",\"data\":\\[")[1].split("\\]\\}\\],")[0].replace(",", ",\n");
-        } catch (MalformedURLException ex) {
-        } catch (IOException ex) {
+        } catch (Exception ex) {
+            logger.error("Problem getting soundcloud info for url '" + songURL + "'", ex);
         }
         return attributes;
     }
