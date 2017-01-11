@@ -35,10 +35,6 @@
     float:left;
 }
 
-#musicHolder {
-    clear:both;
-}
-
 #likeArea {
     display: none;
     background-color: lightgreen;

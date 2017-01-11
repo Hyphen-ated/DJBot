@@ -1,5 +1,5 @@
 var urlPrefix = window.location.origin
-var playingVideo = false;
+var paused = true;
 var currentlyPlayingRequestId = 0;
 var waitingOnNext = false;
 var currentVolume = 30;
@@ -9,26 +9,18 @@ var userToken = null;
 var player;
 //soundcloud variables
 var useYoutubePlayer = true;
-var widget;
+var soundcloudWidget;
+var soundcloudFinishedSong = false;
 
 //youtube api requires a function with exactly this name. it calls this once after page load
 function onYouTubeIframeAPIReady() {
-    player = new YT.Player('musicPlayer', {
+    player = new YT.Player('youtubePlayer', {
       width: '600',
       height: '400',
       events: {
           'onError': onYoutubeError
       }
     });
-}
-
-function setupWidget() {
-	//associates the iframe sc-widget with the SC Widget API
-	widget = SC.Widget('sc-widget');
-
-    widget.bind(SC.Widget.Events.FINISH, function() {
-		nextSong(false);
-	});
 }
 
 function onYoutubeError(event) {
@@ -38,6 +30,16 @@ function onYoutubeError(event) {
     }
 }
 
+function setupSoundcloudWidget() {
+	//associates the iframe sc-widget with the SC Widget API
+	soundcloudWidget = SC.Widget('sc-widget');
+
+    soundcloudWidget.bind(SC.Widget.Events.FINISH, function() {
+		soundcloudFinishedSong = true;
+	});
+}
+
+//figure out whether we're using authentication for the djbot user
 $.ajax({
         dataType: 'json',
         url: urlPrefix + '/djbot/authenabled?callback=?',
@@ -52,18 +54,20 @@ $.ajax({
         }
     })
 
+//register shortcut keys for liking, volume, and next
 $(document).keydown(function(event){
-    if(event.keyCode === 38 && event.altKey && event.ctrlKey) {
+    if(event.keyCode === 38 && event.altKey && event.ctrlKey) { //crtl-alt-up
         like();
-    } else if(event.keyCode === 38 && event.altKey) {
+    } else if(event.keyCode === 38 && event.altKey) { //alt-up
         changevol(10);
-    } else if(event.keyCode === 40 && event.altKey) {
+    } else if(event.keyCode === 40 && event.altKey) { //alt-down
         changevol(-10);
-    } else if(event.keyCode === 39 && event.altKey) {
+    } else if(event.keyCode === 39 && event.altKey) { //alt-right
         nextSong(true);
     }
 });
 
+//only used if auth is enabled
 function login() {
     $.ajax({
         dataType: 'json',
@@ -83,69 +87,73 @@ function login() {
     })
 }
 
-function loadSong(youtubeId, requestId, startTime) {
-    if (youtubeId.charAt(0) !== '/') {
+function loadSong(songId, requestId, startTime) {
+    if (songId.charAt(0) !== '/') {
         useYoutubePlayer = true;
         player.loadVideoById({
-            'videoId': youtubeId,
+            'videoId': songId,
             'startSeconds': startTime,
             'suggestedQuality': 'large'
         });
-
-		playingVideo = true;
 	} else {
 		useYoutubePlayer = false;
 
-		var newUrl = 'https://soundcloud.com' + youtubeId;
+		var newUrl = 'https://soundcloud.com' + songId;
 
-		widget.bind(SC.Widget.Events.READY, function() {
-			widget.load(newUrl);
-			widget.unbind(SC.Widget.Events.READY);
+		soundcloudWidget.bind(SC.Widget.Events.READY, function() {
+			soundcloudWidget.load(newUrl);
+			soundcloudWidget.unbind(SC.Widget.Events.READY);
 
-			widget.bind(SC.Widget.Events.PLAY, function() {
-				if (startTime) widget.seekTo(starTime * 1000);
-				widget.unbind(SC.Widget.Events.PLAY);
+			soundcloudWidget.bind(SC.Widget.Events.PLAY, function() {
+				if (startTime) soundcloudWidget.seekTo(startTime * 1000);
+				soundcloudWidget.unbind(SC.Widget.Events.PLAY);
 			});
 
-			widget.bind(SC.Widget.Events.READY, function() {
-				widget.play();
+			soundcloudWidget.bind(SC.Widget.Events.READY, function() {
+				soundcloudWidget.play();
 			});
 		});
 	}
 	currentlyPlayingRequestId = requestId;
+	paused = false;
+	soundcloudFinishedSong = false;
 	$("#likeArea").hide();
 }
 
 
 function playpause() {
 	if (useYoutubePlayer) {
-		if(player.getPlayerState() !== 1) {
+		if(paused) {
 			player.playVideo();
-			playingVideo = true;
 		} else {
 			player.pauseVideo();
-			playingVideo = false;
 		}
 	} else {
-		widget.isPaused(function(paused) {
+		soundcloudWidget.isPaused(function(soundcloudPauseStatus) {
 			if (paused) {
-				widget.play();
+				soundcloudWidget.play();
 			} else {
-				widget.pause();
+				soundcloudWidget.pause();
 			}
 		});
 	}
+	paused = !paused;
 }
 
 function applyVolumeChange(vol) {
     currentVolume = vol;
-    //youtube volume is linear, switch to a log scale so volume 10->20 is similar to 80->90
+    //djbot volume should be log scaled so going from 10->20 has a similar effect as 80->90.
+    //youtube volume is linear, so 10->20 has a dramatic effect and 80->90 is barely noticeable.
+    //so we need to transform from one scale to another. at 0 and 100 they should be equal to each other.
+    // so we can plug in 100 for both volumes in this formula and solve for a scaling factor x
+    // 100 = e^(100*x)
+    // x is 0.04605
     var youtubeVol = Math.pow(Math.E, vol * 0.04605);
-	if (useYoutubePlayer) {
-		player.setVolume(youtubeVol);
-	} else {
-		widget.setVolume(youtubeVol / 100);
-	}
+
+	player.setVolume(youtubeVol);
+
+	//soundcloud goes from 0-1 instead of 0-100 like youtube, and it's similarly linearly scaled
+    soundcloudWidget.setVolume(youtubeVol / 100);
 }
 
 function changevol(delta) {
@@ -155,26 +163,28 @@ function changevol(delta) {
     applyVolumeChange(newvol);
     if(userToken || !usingAuth) {
         $.ajax({
-                dataType: 'json',
-                url: urlPrefix + '/djbot/updatevolume?volume=' + newvol + '&userToken=' + userToken + '&callback=?',
-                success: function(data) {
-                    //nothing to do here now, since we have no error reporting
-                }
-            })
+            dataType: 'json',
+            url: urlPrefix + '/djbot/updatevolume?volume=' + newvol + '&userToken=' + userToken + '&callback=?',
+            success: function(data) {
+                //nothing to do here now, since we have no error reporting
+            }
+        })
     }
 }
 
-var doingNext = false;
+
 function nextSong(skip) {
-    if(doingNext)
+    if(waitingOnNext)
         return;
+
+    waitingOnNext = true;
 
     if(skip) {
         var maybeSkipped = "skip=true&";
     } else {
         var maybeSkipped = "";
     }
-    doingNext = true;
+
     $.ajax({
         dataType: 'json',
         url: urlPrefix + '/djbot/next?'+maybeSkipped+'currentId=' + currentlyPlayingRequestId + '&userToken=' + userToken + '&callback=?',
@@ -193,14 +203,13 @@ function nextSong(skip) {
 
             }
             if(!itWorked) {
+                //make the song end even if we got no next song from the server
                 if(player.getPlayerState() !== 0) {
-                    //make the video end even if we got nothing from the server
                     player.seekTo(99999);
                 }
-				widget.getPosition(function(position) {
+				soundcloudWidget.getPosition(function(position) {
 					if (position !== 0) {
-						//make the song end even if we got nothing from the server
-						widget.seekTo(600000);
+						soundcloudWidget.seekTo(600000);
 					}
 				});
             }
@@ -209,6 +218,7 @@ function nextSong(skip) {
 }
 
 function loadCurrentSong() {
+    waitingOnNext = true;
     $.ajax({
         dataType: 'json',
         url: urlPrefix + '/djbot/current?callback=?',
@@ -226,22 +236,25 @@ function loadCurrentSong() {
 
 
 function update() {
-    if(waitingOnNext || doingNext) {
+    if(waitingOnNext) {
         return;
     }
 
     if(justStarted) {
         loadCurrentSong();
-        waitingOnNext = true;
         return;
     }
 
     try {
         //are we sitting at the end of a video and it's time to load the next?
-        if(useYoutubePlayer && playingVideo && player && player.getPlayerState() === 0 && !(usingAuth && !userToken)) {
-            waitingOnNext = true;
-            nextSong(false);
-            return;
+        if(!(usingAuth && !userToken && !paused)) {
+            if(useYoutubePlayer && player && player.getPlayerState() === 0 ) {
+                nextSong(false);
+                return
+            } else if (!useYoutubePlayer && soundcloudFinishedSong) {
+                nextSong(false);
+                return;
+            }
         }
     } catch (err) {
         console.log(err);

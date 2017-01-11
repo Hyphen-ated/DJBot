@@ -16,9 +16,11 @@
         <div id="user">not logged in</div>
     </div>
     <div id="musicHolder">
-        <div id="musicPlayer" />
+        <div id="youtubePlayer" />
     </div>
-	<iframe id="sc-widget" onload="setupWidget()" width="600" src="https://w.soundcloud.com/player/?url=http%3A%2F%2Fapi.soundcloud.com%2Ftracks%2F1848538&show_artwork=true"></iframe>
+    <br>
+    <iframe id="sc-widget" onload="setupSoundcloudWidget()" width="600" src="https://w.soundcloud.com/player/?url=http%3A%2F%2Fapi.soundcloud.com%2Ftracks%2F1848538&show_artwork=true"></iframe>
+
     <div id="buttons">
         <button onclick="playpause()">Play/pause</button>
         <button id="nextButton" onclick="nextSong(true)">Next</button>
