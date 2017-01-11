@@ -7,6 +7,9 @@ var usingAuth = false;
 var currentUser = null;
 var userToken = null;
 var player;
+//soundcloud variables
+var useYoutubePlayer = true;
+var widget;
 
 //youtube api requires a function with exactly this name. it calls this once after page load
 function onYouTubeIframeAPIReady() {
@@ -17,6 +20,15 @@ function onYouTubeIframeAPIReady() {
           'onError': onYoutubeError
       }
     });
+}
+
+function setupWidget() {
+	//associates the iframe sc-widget with the SC Widget API
+	widget = SC.Widget('sc-widget');
+
+    widget.bind(SC.Widget.Events.FINISH, function() {
+		nextSong(false);
+	});
 }
 
 function onYoutubeError(event) {
@@ -78,26 +90,60 @@ function loadSong(youtubeId, requestId, startTime) {
         'suggestedQuality': 'large'
     });
 
-    playingVideo = true;
-    currentlyPlayingRequestId = requestId;
-    $("#likeArea").hide();
+		playingVideo = true;
+	} else {
+		useYoutubePlayer = false;
+
+		var newUrl = 'https://soundcloud.com' + youtubeId;
+
+		widget.bind(SC.Widget.Events.READY, function() {
+			widget.load(newUrl);
+			widget.unbind(SC.Widget.Events.READY);
+
+			widget.bind(SC.Widget.Events.PLAY, function() {
+				if (startTime) widget.seekTo(starTime * 1000);
+				widget.unbind(SC.Widget.Events.PLAY);
+			});
+
+			widget.bind(SC.Widget.Events.READY, function() {
+				widget.play();
+			});
+		});
+	}
+	currentlyPlayingRequestId = requestId;
+	$("#likeArea").hide();
 }
 
 
 function playpause() {
-    if(player.getPlayerState() !== 1) {
-        player.playVideo();
-    } else {
-        player.pauseVideo();
-        playingVideo = false;
-    }
+	if (useYoutubePlayer) {
+		if(player.getPlayerState() !== 1) {
+			player.playVideo();
+			playingVideo = true;
+		} else {
+			player.pauseVideo();
+			playingVideo = false;
+		}
+	} else {
+		widget.isPaused(function(paused) {
+			if (paused) {
+				widget.play();
+			} else {
+				widget.pause();
+			}
+		});
+	}
 }
 
 function applyVolumeChange(vol) {
     currentVolume = vol;
     //youtube volume is linear, switch to a log scale so volume 10->20 is similar to 80->90
     var youtubeVol = Math.pow(Math.E, vol * 0.04605);
-    player.setVolume(youtubeVol);
+	if (useYoutubePlayer) {
+		player.setVolume(youtubeVol);
+	} else {
+		widget.setVolume(youtubeVol / 100);
+	}
 }
 
 function changevol(delta) {
@@ -149,6 +195,12 @@ function nextSong(skip) {
                     //make the video end even if we got nothing from the server
                     player.seekTo(99999);
                 }
+				widget.getPosition(function(position) {
+					if (position !== 0) {
+						//make the song end even if we got nothing from the server
+						widget.seekTo(600000);
+					}
+				});
             }
         }
     })
@@ -184,7 +236,7 @@ function update() {
 
     try {
         //are we sitting at the end of a video and it's time to load the next?
-        if( playingVideo && player && player.getPlayerState() === 0 && !(usingAuth && !userToken)) {
+        if(useYoutubePlayer && playingVideo && player && player.getPlayerState() === 0 && !(usingAuth && !userToken)) {
             waitingOnNext = true;
             nextSong(false);
             return;
