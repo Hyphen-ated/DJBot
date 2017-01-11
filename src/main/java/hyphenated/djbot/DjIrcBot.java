@@ -34,7 +34,7 @@ public class DjIrcBot extends PircBot {
 
 
     public volatile HashSet<String> opUsernames = new HashSet<>();
-    public volatile HashMap<String, DateTime> leaveTimeByUser = new HashMap<>();
+    public volatile HashMap<String, DateTime> lastActiveTimeByUser = new HashMap<>();
 
     private DjService dj;
 
@@ -70,6 +70,9 @@ public class DjIrcBot extends PircBot {
         this.dj = dj;
     }
 
+    private void setUserActiveTime(String user) {
+        lastActiveTimeByUser.put(user, new DateTime());
+    }
 
     private void tryConnect() {
 
@@ -143,15 +146,12 @@ public class DjIrcBot extends PircBot {
             opUsernames.remove(sender);
             dj.logger.info("Moderator " + sender + " left channel");
         }
-        leaveTimeByUser.put(sender, new DateTime());
+        setUserActiveTime(sender);
     }
 
     @Override
     protected void onJoin(String channel, String sender, String login, String hostname) {
-        if(leaveTimeByUser.containsKey(sender)) {
-            leaveTimeByUser.remove(sender);
-            dj.logger.info("User " + sender + " rejoined, removing them from the leaveTime map");
-        }
+        setUserActiveTime(sender);
     }
 
     @Override
@@ -220,11 +220,14 @@ public class DjIrcBot extends PircBot {
         logMessage(conf.getBotName(), msg);
     }
 
-    public User[] getUsers() {
-        return this.getUsers(channel);
+    public boolean isMod(String user) {
+        return opUsernames.contains(user) || dj.getStreamer().equals(user);
     }
 
-    public boolean isMod(String sender) {
-        return opUsernames.contains(sender) || dj.getStreamer().equals(sender);
+    public void updateUserActiveTimes() {
+        DateTime now = new DateTime();
+        for (User user : this.getUsers(channel)) {
+            lastActiveTimeByUser.put(user.getNick().toLowerCase(Locale.US), now);
+        }
     }
 }

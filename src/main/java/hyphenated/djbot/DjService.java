@@ -203,7 +203,7 @@ public class DjService {
 
         try {
             dao.setSongToBePlayed(skipId, false);
-            updatePlayedSongsFile();
+            updateSongList();
         } catch (IOException e) {
             logger.error("problem updating playedSongs", e);
         }
@@ -565,8 +565,9 @@ public class DjService {
             //any song requested by someone who has been gone for long enough should move from the primary list to the secondary list
 
             ArrayList<SongEntry> newSongList = new ArrayList<>();
+            irc.updateUserActiveTimes();
             for (SongEntry song : songList) {
-                DateTime leaveTime = irc.leaveTimeByUser.get(song.getUser());
+                DateTime leaveTime = irc.lastActiveTimeByUser.get(song.getUser());
 
                 if (leaveTime != null && leaveTime.plusSeconds(conf.getSecondaryQueueCountdownSeconds()).isBeforeNow()) {
                     logger.info("Bumping songid " + song.getRequestId() + " to secondary queue because its requester (" + song.getUser() + ") has been gone for " + conf.getSecondaryQueueCountdownSeconds() + " seconds");
@@ -581,7 +582,7 @@ public class DjService {
         }
     }
 
-    private void updatePlayedSongsFile() throws IOException {
+    private void updateSongList() throws IOException {
 
         //send file to dropbox
         DbxClient client = getDbxClient();
@@ -836,7 +837,7 @@ public class DjService {
 
         dao.addSong(newSong, true);
 
-        updatePlayedSongsFile();
+        updateSongList();
     }
 
     private void doYoutubeListRequest(String sender, String listPathId) {
@@ -1060,7 +1061,7 @@ public class DjService {
         currentSong = song;
 
         try {
-            updatePlayedSongsFile();
+            updateSongList();
             updateNowPlayingFile(currentSong);
         } catch (IOException e) {
             logger.error("Couldn't update playedSongs file", e);
