@@ -1,6 +1,8 @@
 package hyphenated.djbot;
 
 import com.dropbox.core.*;
+import com.dropbox.core.v2.DbxClientV2;
+import com.dropbox.core.v2.sharing.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import hyphenated.djbot.db.SongQueueDAO;
 import hyphenated.djbot.json.SongEntry;
@@ -32,7 +34,7 @@ public class DjService {
     public Logger logger = LoggerFactory.getLogger("hyphenated.djbot");
 
     private final String nowPlayingFilePath = "nowPlayingInfo.txt";
-    private final String dboxFilePath = "/Public/songlist.txt";
+    private final String dboxFilePath = "/songlist.txt";
 
     private final DjConfiguration conf;
     private final DjIrcBot irc;
@@ -156,13 +158,22 @@ public class DjService {
     }
 
     private String determineDropboxLink(DjConfiguration conf) {
-        DbxClient client = getDbxClient();
+        DbxClientV2 client = getDbxClient();
         try {
-            String url = client.createShareableUrl(dboxFilePath);
-            if(url == null) {
-                //this can happen the first time the bot ever runs
-                return url;
+            String url;
+
+            DbxUserSharingRequests share = client.sharing();
+
+            ListSharedLinksResult result = share.listSharedLinksBuilder().withPath(dboxFilePath).start();
+            List<SharedLinkMetadata> links = result.getLinks();
+            if(links.size() > 0) {
+                url = links.get(0).getUrl();
+            } else {
+                SharedLinkSettings settings = new SharedLinkSettings(RequestedVisibility.PUBLIC, null, null);
+                SharedLinkMetadata metadata = share.createSharedLinkWithSettings(dboxFilePath, settings);
+                url = metadata.getUrl();
             }
+
             return url.replace("?dl=0", "?raw=1");
         } catch (DbxException e) {
             logger.error("Can't create dropbox link", e);
@@ -170,9 +181,9 @@ public class DjService {
         }
     }
 
-    private DbxClient getDbxClient() {
+    private DbxClientV2 getDbxClient() {
         DbxRequestConfig config = new DbxRequestConfig("djbot/1.0", Locale.getDefault().toString());
-        return new DbxClient(config, conf.getDropboxAccessToken());
+        return new DbxClientV2(config, conf.getDropboxAccessToken());
     }
 
     public synchronized void irc_songlist( String sender) {
@@ -585,12 +596,11 @@ public class DjService {
     private void updateSongList() throws IOException {
 
         //send file to dropbox
-        DbxClient client = getDbxClient();
+        DbxClientV2 client = getDbxClient();
         try {
             String dboxContents = buildReportString();
             byte[] contentBytes = dboxContents.getBytes("utf-8");
-            DbxEntry.File uploadedFile = client.uploadFile(dboxFilePath,
-                    DbxWriteMode.force(), contentBytes.length, new ByteArrayInputStream(contentBytes));
+            client.files().upload(dboxFilePath).uploadAndFinish(new ByteArrayInputStream(contentBytes));
         } catch (DbxException e) {
             logger.error("Problem talking to dropbox to update the songlist", e);
         }
