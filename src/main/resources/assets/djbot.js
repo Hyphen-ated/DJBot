@@ -105,6 +105,7 @@ function loadSong(songId, requestId, startTime) {
 			soundcloudWidget.unbind(SC.Widget.Events.READY);
 
 			soundcloudWidget.bind(SC.Widget.Events.PLAY, function() {
+				applyVolumeChange(0);
 				if (startTime) soundcloudWidget.seekTo(startTime * 1000);
 				soundcloudWidget.unbind(SC.Widget.Events.PLAY);
 			});

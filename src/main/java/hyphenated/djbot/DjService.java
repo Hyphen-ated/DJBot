@@ -394,6 +394,7 @@ public class DjService {
         int startSeconds = extractStartSecondsFromTimeParam(requestStr);
 
         String url = requestStr;
+		if (requestStr.trim().charAt(0) == '/') requestStr = requestStr.replaceFirst("/", "");
         if(! requestStr.startsWith("https://soundcloud.com/")) {
            url = "https://soundcloud.com/" + url;
         }
