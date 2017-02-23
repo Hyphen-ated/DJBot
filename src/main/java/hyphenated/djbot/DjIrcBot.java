@@ -163,6 +163,7 @@ public class DjIrcBot extends PircBot {
             dj.logger.error("DjIrcBot trying to handle a message but its djService hasn't been set");
             return;
         }
+        setUserActiveTime(sender);
 
         message = message.trim();
         String lowercaseMessage = message.toLowerCase(Locale.US);
