@@ -32,7 +32,7 @@ maxSongLength: 8.0
 maxSongLengthWhenQueueEmpty: 12.0
 
 # how long to wait before bumping someone's song to the secondary queue if they leave chat (0 to disable)
-secondaryQueueCountdownSeconds: 300
+secondaryQueueCountdownSeconds: 3600
 
 # how many lines can the integrated console window show
 maxConsoleLines: 99999
@@ -157,3 +157,45 @@ httpClient:
     # A value of 0 will result in connections being immediately
     # closed after a response.
     keepAlive: 0s
+
+database:
+  # the name of your JDBC driver
+  driverClass: org.sqlite.JDBC
+
+  # with sqlite there are no credentials needed. if this used a different database in some future, those would go here.
+  # the username
+  #user: test
+
+  # the password
+  #password: password
+
+  # the JDBC URL
+  url: jdbc:sqlite:songqueue.db
+
+  # any properties specific to your JDBC driver:
+  properties:
+    charSet: UTF-8
+
+  # the maximum amount of time to wait on an empty pool before throwing an exception
+  maxWaitForConnection: 1s
+
+  # the SQL query to run when validating a connection's liveness
+  validationQuery: "/* MyService Health Check */ SELECT 1"
+
+  # the timeout before a connection validation queries fail
+  validationQueryTimeout: 3s
+
+  # the minimum number of connections to keep open
+  minSize: 8
+
+  # the maximum number of connections to keep open
+  maxSize: 32
+
+  # whether or not idle connections should be validated
+  checkConnectionWhileIdle: false
+
+  # the amount of time to sleep between runs of the idle connection validation, abandoned cleaner and idle pool resizing
+  evictionInterval: 10s
+
+  # the minimum amount of time an connection must sit idle in the pool before it is eligible for eviction
+  minIdleTime: 1 minute
