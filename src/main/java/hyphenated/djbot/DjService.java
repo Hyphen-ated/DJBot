@@ -722,8 +722,6 @@ public class DjService {
             return;
         }
 
-
-
         try {
 
             JSONObject obj = getJsonForYoutubeId(youtubeId);
@@ -812,24 +810,24 @@ public class DjService {
 
     private void doSoundcloudRequest(String sender, String requestStr, int startSeconds) {
         updateQueuesForLeavers();
-        String attributes = getSoundcloudAttributes(requestStr);
-        if(attributes == null) {
-            denySong(sender, "I couldn't get info about that song from soundcloud");
-            return;
-        }
-        String soundcloudId = parseText(attributes, "permalink_url").replaceFirst("https://soundcloud.com", "");
-
-        if(blacklistedYoutubeIds.contains(soundcloudId)) {
-            denySong(sender, "that song is blacklisted by the streamer");
-            return;
-        }
-
-
-
         try {
 
-            int durationSeconds = Integer.parseInt(parseNumerical(attributes, "duration")) / 1000;
-            String title = parseText(attributes, "title");
+            JSONObject attributes = getJsonFromSoundcloud(requestStr);
+            if(attributes == null) {
+                denySong(sender, "I couldn't get info about that song from soundcloud");
+                return;
+            }
+
+            String soundcloudId = attributes.getString("permalink_url").replaceFirst("https://soundcloud.com", "");
+
+            if(blacklistedYoutubeIds.contains(soundcloudId)) {
+                denySong(sender, "that song is blacklisted by the streamer");
+                return;
+            }
+
+            int durationMillis = attributes.optInt("duration", 0);
+            int durationSeconds = durationMillis / 1000;
+            String title = attributes.optString("title", "<title not found>");
 
             if(!sender.equals(streamer) && durationSeconds / 60.0 > songLengthAllowedMinutes()) {
                 denySong(sender, "the song is over " + songLengthAllowedMinutes() + " minutes");
@@ -875,33 +873,32 @@ public class DjService {
             addSongToQueue(sender, newSong);
 
 
-        } catch (NumberFormatException | IOException e) {
-            logger.error("Problem with soundcloud request \"" + soundcloudId + "\"", e);
+        } catch (Exception e) {
+            logger.error("Problem with soundcloud request \"" + requestStr + "\"", e);
             denySong(sender, "I had an error while trying to add that song");
         }
     }
 
     @Nullable
-    private String getSoundcloudAttributes(String songURL) {
-        String attributes = null;
-        try {
-            String infoUrl = "https://w.soundcloud.com/player/?url=" + songURL;
+    private JSONObject getJsonFromSoundcloud(String songURL) throws Exception {
+        //rakxer applied for an api account and they granted it after a 1 month wait. this is his client_id. we don't
+        //need a client secret for anything, since all we're trying to do is resolve public information about songs.
+        String infoUrl = "https://api.soundcloud.com/resolve.json?client_id=LOjEEQE0Y1J2hFb08g7IYmj0D3oYiRiH&url=" + songURL ;
 
-            GetMethod get;
-            HttpClient client = new HttpClient();
-            get = new GetMethod(infoUrl);
-            int errcode = client.executeMethod(get);
-            if(errcode != 200) {
-                throw new RuntimeException("Http error " + errcode + " from soundcloud");
-            }
-
-            String resp = IOUtils.toString(get.getResponseBodyAsStream(), "utf-8");
-
-            attributes = resp.split(",\"data\":\\[")[1].split("\\]\\}\\],")[0].replace(",", ",\n");
-        } catch (Exception ex) {
-            logger.error("Problem getting soundcloud info for url '" + songURL + "'", ex);
+        GetMethod get;
+        HttpClient client = new HttpClient();
+        get = new GetMethod(infoUrl);
+        int errcode = client.executeMethod(get);
+        if(errcode != 200) {
+            throw new RuntimeException("Http error " + errcode + " from soundcloud");
         }
-        return attributes;
+        String resp = IOUtils.toString(get.getResponseBodyAsStream(), "utf-8");
+        if(resp == null) {
+            logger.info("Couldn't get detail at " + infoUrl);
+            throw new RuntimeException("Couldn't understand soundcloud's response for id "  + songURL);
+        }
+
+        return new JSONObject(resp);
     }
     
     private String parseText(String attributes, String variable) {
