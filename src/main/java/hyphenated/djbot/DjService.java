@@ -881,18 +881,23 @@ public class DjService {
         }
     }
 
+    @Nullable
     private String getSoundcloudAttributes(String songURL) {
         String attributes = null;
         try {
-            URL url = new URL("https://w.soundcloud.com/player/?url=" + songURL);
-            InputStream is = url.openStream();
-            StringBuilder buffer = new StringBuilder();
-            int ptr;
-            while ((ptr = is.read()) != -1) {
-                buffer.append((char) ptr);
+            String infoUrl = "https://w.soundcloud.com/player/?url=" + songURL;
+
+            GetMethod get;
+            HttpClient client = new HttpClient();
+            get = new GetMethod(infoUrl);
+            int errcode = client.executeMethod(get);
+            if(errcode != 200) {
+                throw new RuntimeException("Http error " + errcode + " from soundcloud");
             }
 
-            attributes = buffer.toString().split(",\"data\":\\[")[1].split("\\]\\}\\],")[0].replace(",", ",\n");
+            String resp = IOUtils.toString(get.getResponseBodyAsStream(), "utf-8");
+
+            attributes = resp.split(",\"data\":\\[")[1].split("\\]\\}\\],")[0].replace(",", ",\n");
         } catch (Exception ex) {
             logger.error("Problem getting soundcloud info for url '" + songURL + "'", ex);
         }
