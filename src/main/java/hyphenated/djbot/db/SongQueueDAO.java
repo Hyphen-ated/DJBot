@@ -31,6 +31,9 @@ public interface SongQueueDAO {
     @SqlUpdate("update songqueue set liked = :val where requestId = :id")
     void setSongLiked(@Bind("id") int id, @Bind("val") boolean val);
 
+    @SqlQuery("select count(*) from songqueue where user=:user and liked=1")
+    int getUserScore(@Bind("user") String user);
+    
     @SqlUpdate("update songqueue set toBePlayed = :val where requestId = :id")
     void setSongToBePlayed(@Bind("id") int id, @Bind("val") boolean val);
 
