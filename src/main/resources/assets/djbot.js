@@ -150,9 +150,7 @@ function applyVolumeChange(vol) {
     var youtubeVol = Math.pow(Math.E, vol * 0.04605);
 
 	player.setVolume(youtubeVol);
-
-	//soundcloud goes from 0-1 instead of 0-100 like youtube, and it's similarly linearly scaled
-    soundcloudWidget.setVolume(youtubeVol / 100);
+    soundcloudWidget.setVolume(youtubeVol);
 }
 
 function changevol(delta) {
