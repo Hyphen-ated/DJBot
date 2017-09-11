@@ -12,6 +12,13 @@ var useYoutubePlayer = true;
 var soundcloudWidget;
 var soundcloudFinishedSong = false;
 
+function setupYoutubeAPI() {
+    var tag = document.createElement('script');
+    tag.src = "https://www.youtube.com/player_api";
+    var firstScriptTag = document.getElementsByTagName('script')[0];
+    firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+}
+
 //youtube api requires a function with exactly this name. it calls this once after page load
 function onYouTubeIframeAPIReady() {
     // see https://developers.google.com/youtube/player_parameters?playerVersion=HTML5
@@ -32,6 +39,8 @@ function onYouTubeIframeAPIReady() {
 function onYoutubeError(event) {
     if(event.data == 100 || event.data == 101 || event.data == 150) {
         //not found, or not allowed to be embedded. hopefully the dj server checked for this, but if not, we skip it now.
+        console.log("youtube error:");
+        console.log(event);
         nextSong(true);
     }
 }
@@ -290,5 +299,6 @@ function like() {
 
 }
 
+setupYoutubeAPI();
 justStarted = true;
 setInterval(update, 1000);
