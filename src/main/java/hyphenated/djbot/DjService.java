@@ -824,6 +824,13 @@ public class DjService {
                 return;
             }
 
+            String kind = attributes.optString("kind");
+            
+            if(!kind.equals("track")) {
+                denySong(sender, "that doesn't look like a song");
+                return;
+            }
+            
             String soundcloudId = attributes.getString("permalink_url").replaceFirst("https://soundcloud.com", "");
 
             if(blacklistedYoutubeIds.contains(soundcloudId)) {
@@ -905,14 +912,6 @@ public class DjService {
         }
 
         return new JSONObject(resp);
-    }
-    
-    private String parseText(String attributes, String variable) {
-        return attributes.split("\"" + variable + "\":\"")[1].split("\",\n\"")[0];
-    }
-    
-    private String parseNumerical(String attributes, String variable) {
-        return attributes.split("\"" + variable + "\":")[1].split(",\n\"")[0];
     }
 
     private JSONObject getJsonForYoutubeId(String youtubeId) throws Exception {
