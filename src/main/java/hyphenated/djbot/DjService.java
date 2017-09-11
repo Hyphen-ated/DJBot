@@ -488,6 +488,10 @@ public class DjService {
                     continue;
                 }
 
+                if(durationSeconds == 0) {
+                    continue;
+                }
+
                 if(currentSong!= null && videoId.equals(currentSong.getVideoId())) {
                     continue;
                 }
@@ -757,6 +761,11 @@ public class DjService {
                 return;
             }
 
+            if(durationSeconds == 0) {
+                denySong(sender, "that video has length 0 (probably it's a live stream)");
+                return;
+            }
+            
             if(!sender.equals(streamer) && durationSeconds / 60.0 > songLengthAllowedMinutes()) {
                 denySong(sender, "the song is over " + songLengthAllowedMinutes() + " minutes");
                 return;
