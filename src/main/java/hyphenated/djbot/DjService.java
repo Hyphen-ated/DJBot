@@ -25,9 +25,6 @@ import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.net.MalformedURLException;
-import java.net.URL;
 import java.net.URLEncoder;
 import java.util.*;
 import java.util.regex.Matcher;
@@ -295,7 +292,7 @@ public class DjService {
         if(currentSong == null) {
             irc.message( sender + ": no current song (or the server just restarted)");
         } else {
-            irc.message( sender + ": Current song: \"" + currentSong.getTitle() + "\", url: " + currentSong.buildYoutubeUrl() + ", id: " + currentSong.getRequestId());
+            irc.message( sender + ": Current song: \"" + currentSong.getTitle() + "\", url: " + currentSong.buildSongUrl() + ", id: " + currentSong.getRequestId());
         }
     }
 
@@ -304,7 +301,7 @@ public class DjService {
             irc.message(sender + ": no song has finished playing yet");
             return;
         }
-        irc.message( sender + ": Last song: \"" + currentSong.getTitle() + "\", url: " + currentSong.buildYoutubeUrl());
+        irc.message( sender + ": Last song: \"" + currentSong.getTitle() + "\", url: " + currentSong.buildSongUrl());
     }
 
     public synchronized void irc_nextsong(String sender) {
@@ -319,7 +316,7 @@ public class DjService {
             nextSong = songList.get(0);
         }
 
-        irc.message(sender + ": Next song: \"" + nextSong.getTitle() + " \", url: " + currentSong.buildYoutubeUrl());
+        irc.message(sender + ": Next song: \"" + nextSong.getTitle() + " \", url: " + currentSong.buildSongUrl());
         return;
     }
 
@@ -514,7 +511,7 @@ public class DjService {
                 //(which is a common scenario when someone first sets up their bot)
                 irc.message(sender + ": added \"" + title + "\" to queue. id: " + nextRequestId);
 
-                SongEntry newSong = new SongEntry(title, videoId, nextRequestId, sender, new Date().getTime(), durationSeconds, false, 0);
+                SongEntry newSong = new SongEntry(title, videoId, nextRequestId, sender, new Date().getTime(), durationSeconds, false, 0, SiteIds.YOUTUBE);
                 addSongToQueue(sender, newSong);
                 return;
             }
@@ -707,7 +704,7 @@ public class DjService {
     }
 
     private void appendSongReportEntry(StringBuilder sb, SongEntry song) {
-        sb.append(song.buildYoutubeUrl()).append(" \"")
+        sb.append(song.buildSongUrl()).append(" \"")
                 .append(song.getTitle())
                 .append("\", requested by ").append(song.getUser())
                 .append(", id: ").append(song.getRequestId());
@@ -806,7 +803,7 @@ public class DjService {
             //(which is a common scenario when someone first sets up their bot)
             irc.message(sender + ": added \"" + title + "\" to queue. id: " + nextRequestId);
 
-            SongEntry newSong = new SongEntry(title, youtubeId, nextRequestId, sender, new Date().getTime(), durationSeconds, false, startSeconds);
+            SongEntry newSong = new SongEntry(title, youtubeId, nextRequestId, sender, new Date().getTime(), durationSeconds, false, startSeconds, SiteIds.YOUTUBE);
             addSongToQueue(sender, newSong);
 
 
@@ -878,7 +875,7 @@ public class DjService {
             //(which is a common scenario when someone first sets up their bot)
             irc.message(sender + ": added \"" + title + "\" to queue. id: " + nextRequestId);
 
-            SongEntry newSong = new SongEntry(title, soundcloudId, nextRequestId, sender, new Date().getTime(), durationSeconds, false, startSeconds);
+            SongEntry newSong = new SongEntry(title, soundcloudId, nextRequestId, sender, new Date().getTime(), durationSeconds, false, startSeconds, SiteIds.SOUNDCLOUD);
             addSongToQueue(sender, newSong);
 
 
@@ -1073,7 +1070,7 @@ public class DjService {
             }
 
             boolean isBackupSong = true;
-            SongEntry newSong = new SongEntry(title, videoId, nextRequestId, sender, new Date().getTime(), durationSeconds, isBackupSong, 0);
+            SongEntry newSong = new SongEntry(title, videoId, nextRequestId, sender, new Date().getTime(), durationSeconds, isBackupSong, 0, SiteIds.YOUTUBE);
             addSongToQueue(sender, newSong);
             return 1;
 

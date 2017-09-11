@@ -13,7 +13,7 @@ public class SongEntryMapper implements ResultSetMapper<SongEntry>
     {
         return new SongEntry(r.getString("title"), r.getString("videoId"), r.getInt("requestId"),
                 r.getString("user"), r.getLong("requestTime"), r.getInt("durationSeconds"),
-                r.getBoolean("backup"), r.getInt("startSeconds"));
+                r.getBoolean("backup"), r.getInt("startSeconds"), r.getString("site"));
     }
 }
 

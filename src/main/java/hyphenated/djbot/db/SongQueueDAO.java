@@ -12,19 +12,14 @@ import java.util.List;
 
 @RegisterMapper(SongEntryMapper.class)
 public interface SongQueueDAO {
-
-    @SqlUpdate("create table if not exists songqueue(requestId int primary key, title text, videoId text, user text," +
-            " requestTime long, durationSeconds int, backup bool, startSeconds int, toBePlayed boolean, liked boolean ) ")
-    void ensureTables();
-
     @SqlUpdate("insert into songqueue " +
-            "(requestId,  title,  videoId,  user,  requestTime,  durationSeconds,  backup,  startSeconds, toBePlayed, liked)" +
-            "values(:requestId, :title, :videoId, :user, :requestTime, :durationSeconds, :backup, :startSeconds, :toBePlayed, 0)")
+            "(requestId,  title,  videoId,  user,  requestTime,  durationSeconds,  backup,  startSeconds, toBePlayed, liked, site)" +
+            "values(:requestId, :title, :videoId, :user, :requestTime, :durationSeconds, :backup, :startSeconds, :toBePlayed, 0, :site)")
     void addSong(@BindBean SongEntry song, @Bind("toBePlayed") boolean toBePlayed);
 
     @SqlBatch("insert into songqueue " +
-            "(requestId,  title,  videoId,  user,  requestTime,  durationSeconds,  backup,  startSeconds, toBePlayed, liked)" +
-            "values(:requestId, :title, :videoId, :user, :requestTime, :durationSeconds, :backup, :startSeconds, 0, 0)")
+            "(requestId,  title,  videoId,  user,  requestTime,  durationSeconds,  backup,  startSeconds, toBePlayed, liked, site)" +
+            "values(:requestId, :title, :videoId, :user, :requestTime, :durationSeconds, :backup, :startSeconds, 0, 0, :site)")
     @BatchChunkSize(1000)
     void addSongs(@BindBean Iterator<SongEntry> songs);
 
@@ -37,22 +32,21 @@ public interface SongQueueDAO {
     @SqlUpdate("update songqueue set toBePlayed = :val where requestId = :id")
     void setSongToBePlayed(@Bind("id") int id, @Bind("val") boolean val);
 
-    @SqlQuery("select requestId, title, videoId, user, requestTime, durationSeconds, backup, startSeconds " +
+    @SqlQuery("select requestId, title, videoId, user, requestTime, durationSeconds, backup, startSeconds, site " +
             "from songqueue ")
     List<SongEntry> getAllSongs();
 
-    @SqlQuery("select requestId, title, videoId, user, requestTime, durationSeconds, backup, startSeconds " +
+    @SqlQuery("select requestId, title, videoId, user, requestTime, durationSeconds, backup, startSeconds, site " +
             "from songqueue " +
             "where requestTime > :historyCutoff ")
     List<SongEntry> getSongsAfterDate(@Bind("historyCutoff") long historyCutoff);
 
-    @SqlQuery("select requestId, title, videoId, user, requestTime, durationSeconds, backup, startSeconds " +
+    @SqlQuery("select requestId, title, videoId, user, requestTime, durationSeconds, backup, startSeconds, site " +
             "from songqueue " +
             "where toBePlayed = 1 ")
     List<SongEntry> getSongsToPlay();
 
     @SqlQuery("select max(requestId) from songqueue")
     int getHighestId();
-
-
+    
 }

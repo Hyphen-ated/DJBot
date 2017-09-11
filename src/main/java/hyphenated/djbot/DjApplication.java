@@ -2,6 +2,7 @@ package hyphenated.djbot;
 
 import hyphenated.djbot.auth.ConfiguredUserAuthenticator;
 import hyphenated.djbot.auth.User;
+import hyphenated.djbot.db.DbMetaDAO;
 import hyphenated.djbot.db.SongQueueDAO;
 import hyphenated.djbot.health.ChannelCheck;
 import io.dropwizard.Application;
@@ -55,15 +56,33 @@ public class DjApplication extends Application<DjConfiguration> {
 
         final DBIFactory factory = new DBIFactory();
         final DBI jdbi = factory.build(environment, configuration.getDataSourceFactory(), "postgresql");
-        final SongQueueDAO dao = jdbi.onDemand(SongQueueDAO.class);
-        dao.ensureTables();
+        final DbMetaDAO meta = jdbi.onDemand(DbMetaDAO.class);
+        int currentDbVersion = 1; //if this is ever incremented, you need to fix the below code to be a "real" migration system!
 
+        if(!meta.songqueueTableExists()) {
+            //we are creating a fresh new db
+            meta.createSongqueueTable();
+            meta.createMetaTable();
+            meta.insertDbVersion(currentDbVersion);
+        }
+        
+        if(!meta.metaTableExists()) {
+            //we are updating from version 0 of the db when there was no meta table
+            meta.createMetaTable();
+            meta.insertDbVersion(currentDbVersion);
+            meta.addSiteColumn();
+            
+            meta.populateLegacySoundcloudIds();
+            meta.populateLegacyYoutubeIds();
+        }
+        
+        jdbi.close(meta);
+
+        final SongQueueDAO dao = jdbi.onDemand(SongQueueDAO.class);
         DjResource resource = new DjResource(configuration, client, dao);
         environment.jersey().register(resource);
 
         final ChannelCheck channelCheck = new ChannelCheck(resource);
-
-
 
         if(configuration.isDjbotPublic()) {
             String adminUsername = configuration.getAdminUsername();
