@@ -776,16 +776,16 @@ public class DjService {
                 return;
             }
 
-            if(currentSong != null && youtubeId.equals(currentSong.getVideoId())) {
-                denySong(sender, "the song \"" + title + "\" is currently playing");
-                return;
-            }
-
-            if(idCountInMainList(youtubeId) > 0) {
+            if(!sender.equals(streamer) && idCountInMainList(youtubeId) > 0) {
                 denySong(sender, "the song \"" + title + "\" is already in the queue");
                 return;
             }
 
+            if(!sender.equals(streamer) && currentSong != null && youtubeId.equals(currentSong.getVideoId())) {
+                denySong(sender, "the song \"" + title + "\" is currently playing");
+                return;
+            }
+            
             if(!sender.equals(streamer) && songIsProhibitedByRecentDaysPolicy(youtubeId, title)) {
                 denySong(sender, "the song \"" + title + "\" has been played in the last " + conf.getRecencyDays() + " days");
                 return;
@@ -848,13 +848,13 @@ public class DjService {
                 return;
             }
 
-            if(currentSong != null && soundcloudId.equals(currentSong.getVideoId())) {
-                denySong(sender, "the song \"" + title + "\" is currently playing");
+            if(!sender.equals(streamer) && idCountInMainList(soundcloudId) > 0) {
+                denySong(sender, "the song \"" + title + "\" is already in the queue");
                 return;
             }
 
-            if(idCountInMainList(soundcloudId) > 0) {
-                denySong(sender, "the song \"" + title + "\" is already in the queue");
+            if(!sender.equals(streamer) && currentSong != null && soundcloudId.equals(currentSong.getVideoId())) {
+                denySong(sender, "the song \"" + title + "\" is currently playing");
                 return;
             }
 
