@@ -87,12 +87,12 @@ function login() {
     })
 }
 
-function loadSong(songId, requestId, startTime) {
+function loadSong(songId, requestId, startSeconds) {
     if (songId.charAt(0) !== '/') {
         useYoutubePlayer = true;
         player.loadVideoById({
             'videoId': songId,
-            'startSeconds': startTime,
+            'startSeconds': startSeconds,
             'suggestedQuality': 'large'
         });
 	} else {
@@ -106,7 +106,7 @@ function loadSong(songId, requestId, startTime) {
 
 			soundcloudWidget.bind(SC.Widget.Events.PLAY, function() {
 				changevol(0);
-				if (startTime) soundcloudWidget.seekTo(startTime * 1000);
+				if (startSeconds) soundcloudWidget.seekTo(startSeconds * 1000);
 				soundcloudWidget.unbind(SC.Widget.Events.PLAY);
 			});
 
@@ -195,7 +195,7 @@ function nextSong(skip) {
             if( data && data.status === 'success') {
                 var newSong = data.song;
                 if(newSong && newSong.requestId !== currentlyPlayingRequestId) {
-                    loadSong(newSong.videoId, newSong.requestId, data.startSeconds);
+                    loadSong(newSong.videoId, newSong.requestId, newSong.startSeconds);
                     document.getElementById('title').innerHTML=newSong.title;
                     document.getElementById('requester').innerHTML=newSong.user;
                     itWorked = true;
