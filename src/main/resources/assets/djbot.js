@@ -14,12 +14,18 @@ var soundcloudFinishedSong = false;
 
 //youtube api requires a function with exactly this name. it calls this once after page load
 function onYouTubeIframeAPIReady() {
+    // see https://developers.google.com/youtube/player_parameters?playerVersion=HTML5
     player = new YT.Player('youtubePlayer', {
-      width: '600',
-      height: '400',
-      events: {
-          'onError': onYoutubeError
-      }
+        width: '600',
+        height: '400',
+        events: {
+            'onError': onYoutubeError
+        },
+        playerVars: {
+            fs: 0,
+            iv_load_policy: 3,
+            rel: 0
+        }
     });
 }
 
@@ -91,9 +97,9 @@ function loadSong(songId, site, requestId, startSeconds) {
     if (site == 'yt') {
         useYoutubePlayer = true;
         player.loadVideoById({
-            'videoId': songId,
-            'startSeconds': startSeconds,
-            'suggestedQuality': 'large'
+            videoId: songId,
+            startSeconds: startSeconds,
+            suggestedQuality: 'large'            
         });
 	} else if (site == 'sc') {
 		useYoutubePlayer = false;
