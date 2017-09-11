@@ -528,7 +528,7 @@ public class DjService {
     }
 
 
-    private static final Pattern timePattern = Pattern.compile("(((\\d)+)m)?(((\\d)+)s)");
+    private static final Pattern timePattern = Pattern.compile("(((\\d)+)m)?(((\\d)+)s)?");
 
     //given a request string, look for something like &t=1m22s in there, parse the time value, and return the number of seconds it represents
     private int extractStartSecondsFromTimeParam(String requestStr) {
