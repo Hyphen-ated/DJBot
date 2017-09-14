@@ -21,7 +21,7 @@ public class BandcampFetcher  {
          
     //keyword in quotes, optional whitespace around a colon, then any text between the first quote and a second quote that is not preceded by a backslash
     private Pattern titlePattern = Pattern.compile("\"title\"\\s*:\\s*\"(.+?)(?<!\\\\)\"");
-    private Pattern mp3Pattern = Pattern.compile("\"mp3-128\"\\s*:\\s*\"//([^\"]*\")");
+    private Pattern mp3Pattern = Pattern.compile("\"mp3-128\"\\s*:\\s*\"//([^\"]*)\"");
     private Pattern durationPattern = Pattern.compile("\"duration\"\\s*:\\s*(\\d+)");
 
     //start of BandData object, then characters that dont close the object, then the name field
