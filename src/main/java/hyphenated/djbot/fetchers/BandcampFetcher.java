@@ -17,12 +17,15 @@ import java.util.regex.Pattern;
 public class BandcampFetcher  {
     public Logger logger = LoggerFactory.getLogger("hyphenated.djbot");
     
-    private Pattern scriptPattern = Pattern.compile("<script type=\"text/javascript\">\\s*var SiteData(.+?)var CurrencyData", Pattern.DOTALL);
+    private Pattern relevantDataPattern = Pattern.compile("var SiteData(.+?)var CurrencyData", Pattern.DOTALL);
+         
     //keyword in quotes, optional whitespace around a colon, then any text between the first quote and a second quote that is not preceded by a backslash
-    private Pattern artistPattern = Pattern.compile("artist\\s*:\\s*\"(.+?)(?<!\\\\)\"");
     private Pattern titlePattern = Pattern.compile("\"title\"\\s*:\\s*\"(.+?)(?<!\\\\)\"");
     private Pattern mp3Pattern = Pattern.compile("\"mp3-128\"\\s*:\\s*\"//([^\"]*\")");
     private Pattern durationPattern = Pattern.compile("\"duration\"\\s*:\\s*(\\d+)");
+
+    //start of BandData object, then characters that dont close the object, then the name field
+    private Pattern bandNamePattern = Pattern.compile("var BandData[^}]*name:\\s*\"(.+?)(?<!\\\\)\"");
     
     public FetchResult fetchSongData(String url) {
         try {
@@ -35,20 +38,20 @@ public class BandcampFetcher  {
             }
     
             String html = IOUtils.toString(get.getResponseBodyAsStream(), "utf-8");
-            Matcher m = scriptPattern.matcher(html);
+            Matcher m = relevantDataPattern.matcher(html);
             
             if (!m.find()) {
                 return new FetchResult("I couldn't understand bandcamp's song data");
             }
             String relevantData = m.group(1); //reduces the size of the html string to speed up future regex
             
-            m = artistPattern.matcher(relevantData);
+            m = bandNamePattern.matcher(relevantData);
 
-            String artist = null;
+            String bandName = null;
             if(m.find()) {
-                artist = m.group(1);
+                bandName = m.group(1);
             } else {
-                logger.warn("bandcamp artist not found at " + url);
+                logger.warn("band name not found on bandcamp page " + url);
             }
             
             m = titlePattern.matcher(relevantData);
@@ -59,8 +62,8 @@ public class BandcampFetcher  {
                 if(title == null) {
                     return new FetchResult("couldn't parse bandcamp's song title correctly");
                 }
-                if(artist != null) {
-                    title = artist + " - " + title;
+                if(bandName != null) {
+                    title = bandName + " - " + title;
                 }
                 
                 SongEntry song = new SongEntry(title, "", -1, "", new Date().getTime(), -1, false, 0, SiteIds.BANDCAMP);
