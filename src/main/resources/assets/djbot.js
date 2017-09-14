@@ -7,10 +7,12 @@ var usingAuth = false;
 var currentUser = null;
 var userToken = null;
 var player;
+var bcPlayer = $("#bandcampAudio").get(0);
 //soundcloud variables
-var useYoutubePlayer = true;
+var activePlayer = "";
 var soundcloudWidget;
 var soundcloudFinishedSong = false;
+var bandcampFinishedSong = false;
 
 function setupYoutubeAPI() {
     var tag = document.createElement('script');
@@ -104,14 +106,20 @@ function login() {
 
 function loadSong(songId, site, requestId, startSeconds) {
     if (site == 'yt') {
-        useYoutubePlayer = true;
+        $("#soundcloudPlayer").hide();
+        $("#bandcampPlayer").hide();
+        $("#youtubeHolder").css("display", "table-cell");
+        
         player.loadVideoById({
             videoId: songId,
             startSeconds: startSeconds,
             suggestedQuality: 'large'            
         });
+
 	} else if (site == 'sc') {
-		useYoutubePlayer = false;
+        $("#youtubeHolder").hide();        
+        $("#bandcampPlayer").hide();
+        $("#soundcloudPlayer").css("display", "table-cell");
 
 		var newUrl = 'https://soundcloud.com' + songId;
 
@@ -129,30 +137,47 @@ function loadSong(songId, site, requestId, startSeconds) {
 				soundcloudWidget.play();
 			});
 		});
+	} else if (site == 'bc') {
+	    $("#youtubeHolder").hide();     
+	    $("#soundcloudPlayer").hide();
+        $("#bandcampPlayer").css("display", "table-cell");
+        bcPlayer.src = "https://" + songId;
+        bcPlayer.currentTime = 0;
+        bcPlayer.play();
+        	    
 	} else {
 	    console.log("error: loadSong passed an unsupported site id: '" + site +"'");
 	    return;
 	}
+	
+    activePlayer = site;
 	currentlyPlayingRequestId = requestId;
 	paused = false;
 	soundcloudFinishedSong = false;
+	bandcampFinishedSong = false;
 	$("#likeArea").hide();
 }
 
 
 function playpause() {
-	if (useYoutubePlayer) {
+	if (activePlayer === "yt") {
 		if(paused) {
 			player.playVideo();
 		} else {
 			player.pauseVideo();
 		}
-	} else {
+	} else if (activePlayer === "sc") {
         if (paused) {
             soundcloudWidget.play();
         } else {
             soundcloudWidget.pause();
         }
+	} else if (activePlayer === "bc") {
+	    if (paused) {
+	        bcPlayer.play();
+	    } else {
+	        bcPlayer.pause();
+	    }    
 	}
 	paused = !paused;
 }
@@ -169,6 +194,7 @@ function applyVolumeChange(vol) {
 
 	player.setVolume(youtubeVol);
     soundcloudWidget.setVolume(youtubeVol);
+    bcPlayer.volume = youtubeVol / 100.0;
 }
 
 function changevol(delta) {
@@ -196,6 +222,8 @@ function nextSong(skip) {
 
     player.seekTo(99999);
     soundcloudWidget.seekTo(600000);
+    bcPlayer.currentTime = bcPlayer.duration;
+    
 
     if(skip) {
         var maybeSkipped = "skip=true&";
@@ -255,10 +283,13 @@ function update() {
     try {
         //are we sitting at the end of a video and it's time to load the next?
         if(!(usingAuth && !userToken && !paused)) {
-            if(useYoutubePlayer && player && player.getPlayerState() === 0 ) {
+            if(activePlayer === "yt" && player && player.getPlayerState() === 0 ) {
                 nextSong(false);
                 return
-            } else if (!useYoutubePlayer && soundcloudFinishedSong) {
+            } else if (activePlayer === "sc" && soundcloudFinishedSong) {
+                nextSong(false);
+                return;
+            } else if (activePlayer === "bc" && bandcampFinishedSong) {
                 nextSong(false);
                 return;
             }
@@ -300,5 +331,6 @@ function like() {
 }
 
 setupYoutubeAPI();
+bcPlayer.addEventListener("ended", function() {bandcampFinishedSong = true;})
 justStarted = true;
 setInterval(update, 1000);

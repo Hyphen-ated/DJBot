@@ -12,10 +12,6 @@
      float:left;
 }
 
-#musicHolder {
-    clear:both;
-}
-
 #nextButton {
     visibility: hidden;
 }
@@ -23,6 +19,43 @@
 #volumeCheckbox {
     visibility: hidden;
 }
+
+#everything {
+    background-color: white;
+}
+
+#players {
+    width: 600px;
+    height: 400px;
+    background-color: #eeeeee;
+    display: table;
+
+}
+
+#youtubeHolder {
+    clear:both;
+    text-align: center;
+    display: none; 
+    vertical-align: middle;
+}
+
+#soundcloudPlayer {
+    text-align: center;
+    display: none; 
+    vertical-align: middle;
+}
+
+#bandcampPlayer {
+    text-align: center;
+    display: none; 
+    vertical-align: middle;
+}
+
+#bandcampHolder {
+    
+}
+
+
 
 
 #streamDiv {
