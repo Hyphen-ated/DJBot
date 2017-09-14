@@ -6,6 +6,7 @@ import com.dropbox.core.v2.files.WriteMode;
 import com.dropbox.core.v2.sharing.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import hyphenated.djbot.db.SongQueueDAO;
+import hyphenated.djbot.fetchers.*;
 import hyphenated.djbot.json.SongEntry;
 import org.apache.commons.httpclient.HttpClient;
 import org.apache.commons.httpclient.methods.GetMethod;
@@ -59,6 +60,8 @@ public class DjService {
     private final String dropboxLink;
     private Set<String> blacklistedYoutubeIds; //immutable after creation
 
+    private YoutubeFetcher ytFetcher;
+    private SoundcloudFetcher scFetcher;
 
     public DjService(DjConfiguration newConf, DjIrcBot irc, SongQueueDAO dao) {
         this.conf = newConf;
@@ -66,6 +69,8 @@ public class DjService {
         this.volume = conf.getDefaultVolume();
         this.irc = irc;
         this.dao = dao;
+        this.ytFetcher = new YoutubeFetcher(conf);
+        this.scFetcher = new SoundcloudFetcher();
 
         moveLegacySongsJsonToDb();
 
@@ -322,65 +327,69 @@ public class DjService {
 
 
     Pattern idPattern = Pattern.compile("[a-zA-Z0-9_-]{11}");
-
-    //given a string that a user songrequested, try to figure out what it is a link to and do the work to handle it
-    public synchronized void irc_songRequest(String sender, String requestStr) {
-        if(StringUtils.isBlank(requestStr)) {
-            irc_songs(sender);
-            return;
-        }
-
-        int startSeconds = extractStartSecondsFromTimeParam(requestStr);
-
+    //given a string that a user songrequested, try to figure out what it is a link to and use a fetcher to retrieve
+    //metadata about that songs from the appropriate site.
+    private FetchResult fetchSongInfo(String sender, String requestStr) {
+        String possibleId;
+        //we support !songrequest <youtubeid>
         if(requestStr.length() >= 11) {
-            String possibleYoutubeId = requestStr.substring(0, 11);
-
-            Matcher m = idPattern.matcher(possibleYoutubeId);
-            //we support !songrequest <youtubeid>
+            possibleId = requestStr.substring(0, 11);
+            Matcher m = idPattern.matcher(possibleId);
+            
             if (m.matches()) {
-                doYoutubeRequest(sender, possibleYoutubeId, startSeconds);
-                return;
+                return ytFetcher.fetchSongData(possibleId);
             }
         }
 
         //we support youtu.be/<youtubeid>
-        String youtuBeId = findYoutubeIdAfterMarker(requestStr, "youtu.be/");
-        if(youtuBeId != null) {
-            doYoutubeRequest(sender, youtuBeId, startSeconds);
-            return;
+        possibleId = findYoutubeIdAfterMarker(requestStr, "youtu.be/");
+        if(possibleId != null) {
+            return ytFetcher.fetchSongData(possibleId);
         }
 
         //we support standard youtube links like https://www.youtube.com/watch?v=<youtubeid>
-        String vParamId = findYoutubeIdAfterMarker(requestStr, "v=");
-        if(vParamId != null) {
-            doYoutubeRequest(sender, vParamId, startSeconds);
-            return;
+        possibleId = findYoutubeIdAfterMarker(requestStr, "v=");
+        if(possibleId != null) {
+            return ytFetcher.fetchSongData(possibleId);
         }
 
         //we support youtube links like https://www.youtube.com/v/<youtubeid>
-        String vPathId = findYoutubeIdAfterMarker(requestStr, "/v/");
-        if(requestStr.contains("youtube.com") && vPathId != null) {
-            doYoutubeRequest(sender, vPathId, startSeconds);
-            return;
+        possibleId = findYoutubeIdAfterMarker(requestStr, "/v/");
+        if(requestStr.contains("youtube.com") && possibleId != null) {
+            return ytFetcher.fetchSongData(possibleId);
         }
 
         //we support PLAYLISTS like https://www.youtube.com/playlist?list=<playlistid>
         String listPathVar = "?list=";
         int listPathIndex = requestStr.lastIndexOf(listPathVar);
         if(listPathIndex > -1) {
-            String listPathId = requestStr.substring(listPathIndex + listPathVar.length());
-            doYoutubeListRequest(sender, listPathId);
-            return;
+            if(!sender.equals(streamer)) {
+                return new FetchResult("Only the streamer can request lists");
+            }
+            possibleId = requestStr.substring(listPathIndex + listPathVar.length());
+            return ytFetcher.fetchSongListData(possibleId);
         }
 
-        //we support soundcloud links like https://soundcloud.com/<creator/song>
+        //we support soundcloud links like https://soundcloud.com/<creator/songs>
         if (requestStr.startsWith("https://soundcloud.com/")) {
-            doSoundcloudRequest(sender, requestStr, startSeconds);
+            return scFetcher.fetchSongData(requestStr);
+        }
+        
+        //couldn't figure out what else it could be, so it's a search.
+        //searches only go to youtube for now.
+        return ytFetcher.youtubeSearch(sender, requestStr, this);
+    }
+    
+
+    public synchronized void irc_songRequest(String sender, String requestStr) {
+        //they didnt actually request anything. show them the help page.
+        if(StringUtils.isBlank(requestStr)) {
+            irc_songs(sender);
             return;
         }
-
-        this.irc_songSearch(sender, requestStr);
-
+        
+        FetchResult fetched = fetchSongInfo(sender, requestStr);
+        enforcePolicyOnRequest(fetched, sender, requestStr);
     }
 
     public synchronized void irc_soundcloud(String sender, String requestStr) {
@@ -388,17 +397,89 @@ public class DjService {
             denySong(sender, "you didn't provide a soundcloud URL (or just the part after soundcloud.com/ )");
             return;
         }
-        int startSeconds = extractStartSecondsFromTimeParam(requestStr);
 
         String url = requestStr;
-		if (requestStr.trim().charAt(0) == '/') requestStr = requestStr.replaceFirst("/", "");
+        if (requestStr.trim().charAt(0) == '/') requestStr = requestStr.replaceFirst("/", "");
         if(! requestStr.startsWith("https://soundcloud.com/")) {
-           url = "https://soundcloud.com/" + url;
+            url = "https://soundcloud.com/" + url;
         }
-        doSoundcloudRequest(sender, url, startSeconds);
+        FetchResult fetched = scFetcher.fetchSongData(url);
+        enforcePolicyOnRequest(fetched, sender, requestStr);
     }
 
-    //remove the last song someone added
+    //returns a string describing why the song isn't allowed, or null if the song is fine
+    public String getPossiblePolicyFailureReason(SongEntry song, String sender) {
+        if(!sender.equals(streamer) && song.getDurationSeconds() / 60.0 > songLengthAllowedMinutes()) {
+            return "the song is over " + songLengthAllowedMinutes() + " minutes";
+        }
+
+        if(!sender.equals(streamer) && conf.getQueueSize() > 0 && songList.size() >= conf.getQueueSize()) {
+            return "the queue is full at " + conf.getQueueSize();
+        }
+
+        if(!sender.equals(streamer) && idCountInMainList(song.getVideoId()) > 0) {
+            return "the song \"" + song.getTitle() + "\" is already in the queue";
+        }
+
+        if(!sender.equals(streamer) && currentSong != null && song.getVideoId().equals(currentSong.getVideoId())) {
+            return "the song \"" + song.getTitle() + "\" is currently playing";
+        }
+
+        if(!sender.equals(streamer) && songIsProhibitedByRecentDaysPolicy(song.getVideoId(), song.getTitle())) {
+            return "the song \"" + song.getTitle() + "\" has been played in the last " + conf.getRecencyDays() + " days";
+        }
+
+        if(!sender.equals(streamer) && conf.getMaxSongsPerUser() > 0 && senderCount(sender) >= conf.getMaxSongsPerUser()) {
+            return "you have " + conf.getMaxSongsPerUser() + " songs in the queue already";
+        }
+
+        if(!sender.equals(streamer) && moveToPrimaryIfSongInSecondary(song.getVideoId())) {
+            return sender + ": bumping \"" + song.getTitle() + "\" to main queue" ;
+        }
+        return null;
+    }
+    
+    private void enforcePolicyOnRequest(FetchResult fetched, String sender, String requestStr) {
+        if(fetched.failureReason != null) {
+            denySong(sender, fetched.failureReason);
+            return;
+        }
+        if(fetched.songs.size() == 0) {
+            denySong(sender, "something went wrong and I lost track of what song I was looking for");
+            return;
+        }
+
+        int songsAdded = 0;
+        
+        if(fetched.songs.size() == 1) {
+            SongEntry song = fetched.songs.get(0);
+            song.setStartSeconds(extractStartSecondsFromTimeParam(requestStr));
+            String failure = getPossiblePolicyFailureReason(song, sender);
+            if(failure != null) {
+                denySong(sender, failure);
+                return;
+            }
+            songsAdded = addSongToQueue(sender, song);
+
+            //this will cause a redundant looking double message if "up next" messages are enabled and there is no song playing.
+            //but that's better than the alternative of missing the message entirely if no songs are playing at all and the player is not open
+            //(which is a common scenario when someone first sets up their bot)
+            if(songsAdded == 1) {
+                irc.message(sender + ": added \"" + song.getTitle() + "\" to queue. id: " + song.getRequestId());
+            }
+            return;
+        }
+
+        //we dont have to enforce policy when there's more than one song, because only the streamer can request lists
+        for(SongEntry song : fetched.songs) {
+            songsAdded += addSongToQueue(sender, song);
+        }
+        
+        irc.message("Added " + songsAdded + " songs to secondary queue");
+
+    }
+    
+    //remove the last songs someone added
     public synchronized void irc_wrongsong(String sender) {
         Integer songId = lastRequestIdByUser.get(sender);
         if(songId == null || songId == 0) {
@@ -412,116 +493,7 @@ public class DjService {
 
     public synchronized void irc_songSearch(String sender, String q) {
 
-        if(!sender.equals(streamer) && conf.getQueueSize() > 0 && songList.size() >= conf.getQueueSize()) {
-            denySong(sender, "the queue is full at " + conf.getQueueSize());
-            return;
-        }
 
-        if(!sender.equals(streamer) && conf.getMaxSongsPerUser() > 0 && senderCount(sender) >= conf.getMaxSongsPerUser()) {
-            denySong(sender, "you have " + conf.getMaxSongsPerUser() + " songs in the queue already");
-            return;
-        }
-
-        try {
-            String searchUrl = "https://www.googleapis.com/youtube/v3/search?videoEmbeddable=true&part=id&q=" + URLEncoder.encode(q, "UTF-8") + "&type=video&regionCode=" + conf.getUserCountryCode() + "&maxResults=5&key=" + conf.getYoutubeAccessToken();
-            GetMethod get;
-            HttpClient client = new HttpClient();
-
-            get = new GetMethod(searchUrl);
-            int errcode = client.executeMethod(get);
-            if (errcode != 200) {
-                logger.info("Song search error: got code " + errcode + " from " + searchUrl);
-                denySong(sender, "I couldn't run that search properly on youtube");
-                return;
-            }
-
-            String resp = IOUtils.toString(get.getResponseBodyAsStream(), "utf-8");
-            if (resp == null) {
-                logger.info("Couldn't get detail at " + searchUrl);
-                denySong(sender, "I couldn't run that search properly on youtube");
-                return;
-            }
-            JSONObject searchObj = new JSONObject(resp);
-
-            JSONArray searchItems = searchObj.getJSONArray("items");
-            if (searchItems.length() == 0) {
-                logger.info("Empty 'items' array in youtube response for url " + searchUrl);
-                denySong(sender, "no results for that search");
-                return;
-            }
-            for(int i = 0; i < searchItems.length(); ++i) {
-                JSONObject resultItem = searchItems.getJSONObject(i);
-                JSONObject id = resultItem.getJSONObject("id");
-                String videoId = id.getString("videoId");
-                JSONObject obj = getJsonForYoutubeId(videoId);
-
-                JSONArray items = obj.getJSONArray("items");
-                if(items.length() == 0) {
-                    continue;
-                }
-                JSONObject item = items.getJSONObject(0);
-                JSONObject snippet = item.getJSONObject("snippet");
-                JSONObject status = item.getJSONObject("status");
-                JSONObject contentDetails = item.getJSONObject("contentDetails");
-                String title = snippet.getString("title");
-                String durationStr = contentDetails.getString("duration");
-                //format is like "PT5M30S" for 5 minutes 30 seconds
-                Period p = ISOPeriodFormat.standard().parsePeriod(durationStr);
-                int durationSeconds = p.toStandardSeconds().getSeconds();
-
-                if (! countryIsAllowed(contentDetails)) {
-                    continue;
-                }
-
-                if(!("public".equals(status.getString("privacyStatus")))) {
-                    continue;
-                }
-
-                if(!status.getBoolean("embeddable")) {
-                    continue;
-                }
-
-                if(durationSeconds / 60.0 > songLengthAllowedMinutes()) {
-                    continue;
-                }
-
-                if(durationSeconds == 0) {
-                    continue;
-                }
-
-                if(currentSong!= null && videoId.equals(currentSong.getVideoId())) {
-                    continue;
-                }
-
-                if(idCountInMainList(videoId) > 0) {
-                    continue;
-                }
-
-                if(songIsProhibitedByRecentDaysPolicy(videoId, title)) {
-                    continue;
-                }
-
-                if(moveToPrimaryIfSongInSecondary(videoId)) {
-                    irc.message(sender + ": bumping \"" + title + "\" to main queue" );
-                    return;
-                }
-
-                //this will cause a redundant looking double message if "up next" messages are enabled and there is no song playing.
-                //but that's better than the alternative of missing the message entirely if no songs are playing at all and the player is not open
-                //(which is a common scenario when someone first sets up their bot)
-                irc.message(sender + ": added \"" + title + "\" to queue. id: " + nextRequestId);
-
-                SongEntry newSong = new SongEntry(title, videoId, nextRequestId, sender, new Date().getTime(), durationSeconds, false, 0, SiteIds.YOUTUBE);
-                addSongToQueue(sender, newSong);
-                return;
-            }
-        } catch (Exception e) {
-            denySong(sender, "I had a problem trying to run that search");
-            logger.debug("Exception while running search '" + q + "'", e);
-            return;
-        }
-        //if we get here, it means none of the songs in the results were okay
-        denySong(sender, "I didn't find an appropriate video early enough in the search results");
     }
 
 
@@ -723,95 +695,7 @@ public class DjService {
             return;
         }
 
-        try {
 
-            JSONObject obj = getJsonForYoutubeId(youtubeId);
-
-            JSONArray items = obj.getJSONArray("items");
-            if(items.length() == 0) {
-                logger.info("Empty 'items' array in youtube response for id " + youtubeId);
-                denySong(sender, "I couldn't find info about that video on youtube");
-                return;
-            }
-            JSONObject item = items.getJSONObject(0);
-            JSONObject snippet = item.getJSONObject("snippet");
-            JSONObject status = item.getJSONObject("status");
-            JSONObject contentDetails = item.getJSONObject("contentDetails");
-            String title = snippet.getString("title");
-            String durationStr = contentDetails.getString("duration");
-            //format is like "PT5M30S" for 5 minutes 30 seconds
-            Period p = ISOPeriodFormat.standard().parsePeriod(durationStr);
-            int durationSeconds = p.toStandardSeconds().getSeconds();
-
-            if (! countryIsAllowed(contentDetails)) {
-                denySong(sender, "that video can't be played in the streamer's country");
-                return;
-            }
-
-            if(!("public".equals(status.getString("privacyStatus")))) {
-                denySong(sender, "that video is private");
-                return;
-            }
-
-            if(!status.getBoolean("embeddable")) {
-                denySong(sender, "that video is not allowed to be embedded");
-                return;
-            }
-
-            if(durationSeconds == 0) {
-                denySong(sender, "that video has length 0 (probably it's a live stream)");
-                return;
-            }
-            
-            if(!sender.equals(streamer) && durationSeconds / 60.0 > songLengthAllowedMinutes()) {
-                denySong(sender, "the song is over " + songLengthAllowedMinutes() + " minutes");
-                return;
-            }
-
-            if(!sender.equals(streamer) && conf.getQueueSize() > 0 && songList.size() >= conf.getQueueSize()) {
-                denySong(sender, "the queue is full at " + conf.getQueueSize());
-                return;
-            }
-
-            if(!sender.equals(streamer) && idCountInMainList(youtubeId) > 0) {
-                denySong(sender, "the song \"" + title + "\" is already in the queue");
-                return;
-            }
-
-            if(!sender.equals(streamer) && currentSong != null && youtubeId.equals(currentSong.getVideoId())) {
-                denySong(sender, "the song \"" + title + "\" is currently playing");
-                return;
-            }
-            
-            if(!sender.equals(streamer) && songIsProhibitedByRecentDaysPolicy(youtubeId, title)) {
-                denySong(sender, "the song \"" + title + "\" has been played in the last " + conf.getRecencyDays() + " days");
-                return;
-            }
-
-            if(!sender.equals(streamer) && conf.getMaxSongsPerUser() > 0 && senderCount(sender) >= conf.getMaxSongsPerUser()) {
-                denySong(sender, "you have " + conf.getMaxSongsPerUser() + " songs in the queue already");
-                return;
-            }
-
-            if(!sender.equals(streamer) && moveToPrimaryIfSongInSecondary(youtubeId)) {
-                irc.message(sender + ": bumping \"" + title + "\" to main queue" );
-                return;
-            }
-
-            //this will cause a redundant looking double message if "up next" messages are enabled and there is no song playing.
-            //but that's better than the alternative of missing the message entirely if no songs are playing at all and the player is not open
-            //(which is a common scenario when someone first sets up their bot)
-            irc.message(sender + ": added \"" + title + "\" to queue. id: " + nextRequestId);
-
-            SongEntry newSong = new SongEntry(title, youtubeId, nextRequestId, sender, new Date().getTime(), durationSeconds, false, startSeconds, SiteIds.YOUTUBE);
-            addSongToQueue(sender, newSong);
-
-
-        } catch (Exception e) {
-            logger.error("Problem with youtube request \"" + youtubeId + "\"", e);
-            denySong(sender, "I had an error while trying to add that song");
-            return;
-        }
     }
 
     private void doSoundcloudRequest(String sender, String requestStr, int startSeconds) {
@@ -882,7 +766,7 @@ public class DjService {
             //(which is a common scenario when someone first sets up their bot)
             irc.message(sender + ": added \"" + title + "\" to queue. id: " + nextRequestId);
 
-            SongEntry newSong = new SongEntry(title, soundcloudId, nextRequestId, sender, new Date().getTime(), durationSeconds, false, startSeconds, SiteIds.SOUNDCLOUD);
+            SongEntry newSong = new SongEntry(title, soundcloudId, -1, sender, new Date().getTime(), durationSeconds, false, startSeconds, SiteIds.SOUNDCLOUD);
             addSongToQueue(sender, newSong);
 
 
@@ -914,171 +798,36 @@ public class DjService {
         return new JSONObject(resp);
     }
 
-    private JSONObject getJsonForYoutubeId(String youtubeId) throws Exception {
-        String infoUrl = "https://www.googleapis.com/youtube/v3/videos?part=contentDetails,snippet,status&id=" + youtubeId + "&key=" + conf.getYoutubeAccessToken();
-        GetMethod get;
-        HttpClient client = new HttpClient();
-        get = new GetMethod(infoUrl);
-        int errcode = client.executeMethod(get);
-        if(errcode != 200) {
-            throw new RuntimeException("Http error " + errcode + " from youtube for id " + youtubeId);
-        }
-
-        String resp = IOUtils.toString(get.getResponseBodyAsStream(), "utf-8");
-        if(resp == null) {
-            logger.info("Couldn't get detail at " + infoUrl);
-            throw new RuntimeException("Couldn't understand youtube's response for id "  + youtubeId);
-        }
-        return new JSONObject(resp);
-    }
-
-    private boolean countryIsAllowed(JSONObject contentDetails) {
-        JSONObject regionRestriction = contentDetails.optJSONObject("regionRestriction");
-        if(regionRestriction != null) {
-            //if there's an "allowed" list and we're not in it, fail.
-            //if there's a "blocked" list and we are in it, fail
-            JSONArray allowed =  regionRestriction.optJSONArray("allowed");
-            if(allowed != null) {
-                boolean weAreAllowed = false;
-                for(int i = 0; i < allowed.length(); ++i) {
-                    String country = allowed.getString(i);
-                    if(country.equalsIgnoreCase(conf.getUserCountryCode())) {
-                        weAreAllowed = true;
-                    }
-                }
-                if(!weAreAllowed) {
-                    return false;
-                }
-            }
-
-            JSONArray blocked = regionRestriction.optJSONArray("blocked");
-            if(blocked != null) {
-                for(int i = 0; i < blocked.length(); ++i) {
-                    String country = blocked.getString(i);
-                    if(country.equalsIgnoreCase(conf.getUserCountryCode())) {
-                        return false;
-                    }
-                }
-            }
-        }
-        return true;
-    }
-
-    private void addSongToQueue(String sender, SongEntry newSong) throws IOException {
-        ObjectMapper mapper = new ObjectMapper();
+    private int addSongToQueue(String sender, SongEntry newSong) {
+        newSong.setRequestId(nextRequestId);
+        newSong.setUser(sender);
 
         lastRequestIdByUser.put(sender, nextRequestId);
         ++nextRequestId;
-        if(newSong.isBackup()) {
-            secondarySongList.add(newSong);
-        } else {
-            songList.add(newSong);
-        }
-
-        dao.addSong(newSong, true);
-
-        updateSongList();
-    }
-
-    private void doYoutubeListRequest(String sender, String listPathId) {
-        if(!sender.equals(streamer)) {
-            denySong(sender, "youtube playlists are only for the streamer to request");
-            return;
-        }
-
-        String infoUrl = " https://www.googleapis.com/youtube/v3/playlistItems?part=contentDetails&playlistId=" + listPathId + "&key=" + conf.getYoutubeAccessToken() + "&maxResults=50";
-
-        GetMethod get = new GetMethod(infoUrl);
-        HttpClient client = new HttpClient();
+        int songsAdded = 1;
         try {
-            int errcode = client.executeMethod(get);
-            if(errcode != 200) {
-                logger.info("Song request error: got code " + errcode + " from " + infoUrl);
-                denySong(sender, "I couldn't find info about that playlist on youtube");
-
-                return;
+            if (newSong.isBackup()) {
+                secondarySongList.add(newSong);
+            } else {
+                songList.add(newSong);
             }
-        } catch (IOException e) {
-            logger.warn("Couldn't get info from youtube api", e);
-            denySong(sender, "I couldn't find info about that playlist on youtube");
-            return;
-        }
 
-        try {
-            String resp = IOUtils.toString(get.getResponseBodyAsStream(), "utf-8");
-            if(resp == null) {
-                logger.info("Couldn't get detail at " + infoUrl);
-                denySong(sender, "I couldn't find info about that playlist on youtube");
-
-                return;
-            }
-            JSONObject obj = new JSONObject(resp);
-            JSONArray items = obj.getJSONArray("items");
-            int songsAdded = 0;
-            irc.message("Adding playlist...");
-            for(int i = 0; i < items.length(); ++i) {
-                JSONObject item = items.getJSONObject(i);
-                JSONObject contentDetails = item.getJSONObject("contentDetails");
-                String videoId = contentDetails.getString("videoId");
-                songsAdded += addSonglistSong(sender, videoId);
-            }
-            irc.message("Added " + songsAdded + " songs to secondary queue");
-
+            dao.addSong(newSong, true);
         } catch (Exception e) {
-            logger.error("Problem with youtube playlist request \"" + listPathId + "\"", e);
-            return;
+            logger.error("Exception while trying to add song with id " + (nextRequestId-1), e);
+            denySong(sender, "There was an error while trying to add that song");
+            songsAdded = 0;
         }
-
-    }
-
-    //returns the number of songs added: 0 or 1
-    //TODO: refactor this so there isn't so much duplication with doYoutubeRequest
-    private int addSonglistSong(String sender, String videoId) {
-
-        try {
-            JSONObject obj = getJsonForYoutubeId(videoId);
-
-            JSONArray items = obj.getJSONArray("items");
-            if(items.length() == 0) {
-                logger.info("Empty 'items' array in youtube response for id " + videoId);
-                return 0;
+        if(songsAdded == 1) {
+            try {
+                updateSongList();
+            } catch (Exception e) {
+                logger.error("Error while updating song list after requesting song id " + (nextRequestId -1), e);
             }
-            JSONObject item = items.getJSONObject(0);
-            JSONObject snippet = item.getJSONObject("snippet");
-            JSONObject status = item.getJSONObject("status");
-            JSONObject contentDetails = item.getJSONObject("contentDetails");
-            String title = snippet.getString("title");
-            String durationStr = contentDetails.getString("duration");
-            //format is like "PT5M30S" for 5 minutes 30 seconds
-            Period p = ISOPeriodFormat.standard().parsePeriod(durationStr);
-            int durationSeconds = p.toStandardSeconds().getSeconds();
-
-            if (! countryIsAllowed(contentDetails)) {
-                logger.info("playlist video " + videoId + " can't be played in the streamer's country");
-                return 0;
-            }
-
-            if(!("public".equals(status.getString("privacyStatus")))) {
-                logger.info("playlist video " + videoId + " is private");
-                return 0;
-            }
-
-            if(!status.getBoolean("embeddable")) {
-                logger.info("playlist video " + videoId + " is not embeddable");
-                return 0;
-            }
-
-            boolean isBackupSong = true;
-            SongEntry newSong = new SongEntry(title, videoId, nextRequestId, sender, new Date().getTime(), durationSeconds, isBackupSong, 0, SiteIds.YOUTUBE);
-            addSongToQueue(sender, newSong);
-            return 1;
-
-        } catch (Exception e) {
-            logger.info("Problem getting info for video " + videoId);
-            return 0;
         }
+        return songsAdded;
     }
-
+    
     public void setVolume(String trim) {
         try {
             int vol = Integer.parseInt(trim);

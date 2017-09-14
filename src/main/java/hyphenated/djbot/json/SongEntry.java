@@ -126,7 +126,7 @@ public class SongEntry {
         try {
             return mapper.writeValueAsString(this);
         } catch (IOException e) {
-            throw new RuntimeException("Can't convert a song entry to json", e);
+            throw new RuntimeException("Can't convert a songs entry to json", e);
         }
     }
 
