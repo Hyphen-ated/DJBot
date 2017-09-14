@@ -8,16 +8,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import hyphenated.djbot.db.SongQueueDAO;
 import hyphenated.djbot.fetchers.*;
 import hyphenated.djbot.json.SongEntry;
-import org.apache.commons.httpclient.HttpClient;
-import org.apache.commons.httpclient.methods.GetMethod;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.joda.time.DateTime;
-import org.joda.time.Period;
-import org.joda.time.format.ISOPeriodFormat;
-import org.json.JSONArray;
-import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,7 +20,6 @@ import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.net.URLEncoder;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -218,14 +211,8 @@ public class DjService {
         removeSongFromList(songList, skipId, sender, isMod);
         removeSongFromList(secondarySongList, skipId, sender, isMod);
 
-        try {
-            dao.setSongToBePlayed(skipId, false);
-            updateSongList();
-        } catch (IOException e) {
-            logger.error("problem updating playedSongs", e);
-        }
-
-
+        dao.setSongToBePlayed(skipId, false);
+        updateSongList();
     }
 
     private void removeSongFromList(List<SongEntry> listOfSongs, int skipId, String sender, boolean isMod) {
@@ -389,7 +376,15 @@ public class DjService {
         }
         
         FetchResult fetched = fetchSongInfo(sender, requestStr);
-        enforcePolicyOnRequest(fetched, sender, requestStr);
+        dealWithFetchedSongDetails(fetched, sender, requestStr);
+    }
+    
+    public synchronized void irc_songSearch(String sender, String q) {
+        if(StringUtils.isBlank(q)) {
+            denySong(sender, "you didn't include any search terms");
+        }
+        FetchResult fetched = ytFetcher.youtubeSearch(sender, q, this);
+        dealWithFetchedSongDetails(fetched, sender, ""); //blank requestStr because it's just used for start timing
     }
 
     public synchronized void irc_soundcloud(String sender, String requestStr) {
@@ -404,42 +399,46 @@ public class DjService {
             url = "https://soundcloud.com/" + url;
         }
         FetchResult fetched = scFetcher.fetchSongData(url);
-        enforcePolicyOnRequest(fetched, sender, requestStr);
+        dealWithFetchedSongDetails(fetched, sender, requestStr);
     }
 
     //returns a string describing why the song isn't allowed, or null if the song is fine
     public String getPossiblePolicyFailureReason(SongEntry song, String sender) {
-        if(!sender.equals(streamer) && song.getDurationSeconds() / 60.0 > songLengthAllowedMinutes()) {
+       
+        if (sender.equals(streamer)) {
+            return null; //streamer does whatever they want
+        }
+        if(blacklistedYoutubeIds.contains(song.getVideoId())) {
+            return "that song is blacklisted by the streamer";
+        }
+        if(song.getDurationSeconds() / 60.0 > songLengthAllowedMinutes()) {
             return "the song is over " + songLengthAllowedMinutes() + " minutes";
         }
 
-        if(!sender.equals(streamer) && conf.getQueueSize() > 0 && songList.size() >= conf.getQueueSize()) {
+        if(conf.getQueueSize() > 0 && songList.size() >= conf.getQueueSize()) {
             return "the queue is full at " + conf.getQueueSize();
         }
 
-        if(!sender.equals(streamer) && idCountInMainList(song.getVideoId()) > 0) {
+        if(idCountInMainList(song.getVideoId()) > 0) {
             return "the song \"" + song.getTitle() + "\" is already in the queue";
         }
 
-        if(!sender.equals(streamer) && currentSong != null && song.getVideoId().equals(currentSong.getVideoId())) {
+        if(currentSong != null && song.getVideoId().equals(currentSong.getVideoId())) {
             return "the song \"" + song.getTitle() + "\" is currently playing";
         }
 
-        if(!sender.equals(streamer) && songIsProhibitedByRecentDaysPolicy(song.getVideoId(), song.getTitle())) {
+        if(songIsProhibitedByRecentDaysPolicy(song.getVideoId(), song.getTitle())) {
             return "the song \"" + song.getTitle() + "\" has been played in the last " + conf.getRecencyDays() + " days";
         }
 
-        if(!sender.equals(streamer) && conf.getMaxSongsPerUser() > 0 && senderCount(sender) >= conf.getMaxSongsPerUser()) {
+        if(conf.getMaxSongsPerUser() > 0 && senderCount(sender) >= conf.getMaxSongsPerUser()) {
             return "you have " + conf.getMaxSongsPerUser() + " songs in the queue already";
         }
 
-        if(!sender.equals(streamer) && moveToPrimaryIfSongInSecondary(song.getVideoId())) {
-            return sender + ": bumping \"" + song.getTitle() + "\" to main queue" ;
-        }
         return null;
     }
     
-    private void enforcePolicyOnRequest(FetchResult fetched, String sender, String requestStr) {
+    private void dealWithFetchedSongDetails(FetchResult fetched, String sender, String requestStr) {
         if(fetched.failureReason != null) {
             denySong(sender, fetched.failureReason);
             return;
@@ -459,6 +458,13 @@ public class DjService {
                 denySong(sender, failure);
                 return;
             }
+
+            if(moveToPrimaryIfSongInSecondary(song.getVideoId())) {
+                irc.message(sender + ": bumping \"" + song.getTitle() + "\" to main queue" );
+                return;
+            }
+            
+            updateQueuesForLeavers();
             songsAdded = addSongToQueue(sender, song);
 
             //this will cause a redundant looking double message if "up next" messages are enabled and there is no song playing.
@@ -466,17 +472,18 @@ public class DjService {
             //(which is a common scenario when someone first sets up their bot)
             if(songsAdded == 1) {
                 irc.message(sender + ": added \"" + song.getTitle() + "\" to queue. id: " + song.getRequestId());
+                updateSongList();
             }
             return;
         }
-
+        updateQueuesForLeavers();
         //we dont have to enforce policy when there's more than one song, because only the streamer can request lists
         for(SongEntry song : fetched.songs) {
             songsAdded += addSongToQueue(sender, song);
         }
         
         irc.message("Added " + songsAdded + " songs to secondary queue");
-
+        updateSongList();
     }
     
     //remove the last songs someone added
@@ -490,12 +497,6 @@ public class DjService {
         lastRequestIdByUser.put(sender, 0);
 
     }
-
-    public synchronized void irc_songSearch(String sender, String q) {
-
-
-    }
-
 
     private static final Pattern timePattern = Pattern.compile("(((\\d)+)m)?(((\\d)+)s)?");
 
@@ -592,15 +593,14 @@ public class DjService {
         }
     }
 
-    private void updateSongList() throws IOException {
-
+    private void updateSongList() {
         //send file to dropbox
         DbxClientV2 client = getDbxClient();
         try {
             String dboxContents = buildReportString();
             byte[] contentBytes = dboxContents.getBytes("utf-8");
             client.files().uploadBuilder(dboxFilePath).withMode(WriteMode.OVERWRITE).uploadAndFinish(new ByteArrayInputStream(contentBytes));
-        } catch (DbxException e) {
+        } catch (Exception e) {
             logger.error("Problem talking to dropbox to update the songlist", e);
         }
     }
@@ -686,118 +686,7 @@ public class DjService {
     private void appendPlaysNextInfo(StringBuilder sb, int runningSeconds) {
         sb.append(", about ").append(runningSeconds / 60).append(" minutes");
     }
-
-    private void doYoutubeRequest(String sender, String youtubeId, int startSeconds) {
-        updateQueuesForLeavers();
-
-        if(blacklistedYoutubeIds.contains(youtubeId)) {
-            denySong(sender, "that song is blacklisted by the streamer");
-            return;
-        }
-
-
-    }
-
-    private void doSoundcloudRequest(String sender, String requestStr, int startSeconds) {
-        updateQueuesForLeavers();
-        try {
-
-            JSONObject attributes = getJsonFromSoundcloud(requestStr);
-            if(attributes == null) {
-                denySong(sender, "I couldn't get info about that song from soundcloud");
-                return;
-            }
-
-            String kind = attributes.optString("kind");
-            
-            if(!kind.equals("track")) {
-                denySong(sender, "that doesn't look like a song");
-                return;
-            }
-            
-            String soundcloudId = attributes.getString("permalink_url").replaceFirst("https://soundcloud.com", "");
-
-            if(blacklistedYoutubeIds.contains(soundcloudId)) {
-                denySong(sender, "that song is blacklisted by the streamer");
-                return;
-            }
-
-            int durationMillis = attributes.optInt("duration", 0);
-            int durationSeconds = durationMillis / 1000;
-            String title = attributes.optString("title", "<title not found>");
-
-            if(!sender.equals(streamer) && durationSeconds / 60.0 > songLengthAllowedMinutes()) {
-                denySong(sender, "the song is over " + songLengthAllowedMinutes() + " minutes");
-                return;
-            }
-
-            if(!sender.equals(streamer) && conf.getQueueSize() > 0 && songList.size() >= conf.getQueueSize()) {
-                denySong(sender, "the queue is full at " + conf.getQueueSize());
-                return;
-            }
-
-            if(!sender.equals(streamer) && idCountInMainList(soundcloudId) > 0) {
-                denySong(sender, "the song \"" + title + "\" is already in the queue");
-                return;
-            }
-
-            if(!sender.equals(streamer) && currentSong != null && soundcloudId.equals(currentSong.getVideoId())) {
-                denySong(sender, "the song \"" + title + "\" is currently playing");
-                return;
-            }
-
-            if(!sender.equals(streamer) && songIsProhibitedByRecentDaysPolicy(soundcloudId, title)) {
-                denySong(sender, "the song \"" + title + "\" has been played in the last " + conf.getRecencyDays() + " days");
-                return;
-            }
-
-            if(!sender.equals(streamer) && conf.getMaxSongsPerUser() > 0 && senderCount(sender) >= conf.getMaxSongsPerUser()) {
-                denySong(sender, "you have " + conf.getMaxSongsPerUser() + " songs in the queue already");
-                return;
-            }
-
-            if(!sender.equals(streamer) && moveToPrimaryIfSongInSecondary(soundcloudId)) {
-                irc.message(sender + ": bumping \"" + title + "\" to main queue" );
-                return;
-            }
-
-            //this will cause a redundant looking double message if "up next" messages are enabled and there is no song playing.
-            //but that's better than the alternative of missing the message entirely if no songs are playing at all and the player is not open
-            //(which is a common scenario when someone first sets up their bot)
-            irc.message(sender + ": added \"" + title + "\" to queue. id: " + nextRequestId);
-
-            SongEntry newSong = new SongEntry(title, soundcloudId, -1, sender, new Date().getTime(), durationSeconds, false, startSeconds, SiteIds.SOUNDCLOUD);
-            addSongToQueue(sender, newSong);
-
-
-        } catch (Exception e) {
-            logger.error("Problem with soundcloud request \"" + requestStr + "\"", e);
-            denySong(sender, "I had an error while trying to add that song");
-        }
-    }
-
-    @Nullable
-    private JSONObject getJsonFromSoundcloud(String songURL) throws Exception {
-        //rakxer applied for an api account and they granted it after a 1 month wait. this is his client_id. we don't
-        //need a client secret for anything, since all we're trying to do is resolve public information about songs.
-        String infoUrl = "https://api.soundcloud.com/resolve.json?client_id=LOjEEQE0Y1J2hFb08g7IYmj0D3oYiRiH&url=" + songURL ;
-
-        GetMethod get;
-        HttpClient client = new HttpClient();
-        get = new GetMethod(infoUrl);
-        int errcode = client.executeMethod(get);
-        if(errcode != 200) {
-            throw new RuntimeException("Http error " + errcode + " from soundcloud");
-        }
-        String resp = IOUtils.toString(get.getResponseBodyAsStream(), "utf-8");
-        if(resp == null) {
-            logger.info("Couldn't get detail at " + infoUrl);
-            throw new RuntimeException("Couldn't understand soundcloud's response for id "  + songURL);
-        }
-
-        return new JSONObject(resp);
-    }
-
+    
     private int addSongToQueue(String sender, SongEntry newSong) {
         newSong.setRequestId(nextRequestId);
         newSong.setUser(sender);
@@ -818,13 +707,7 @@ public class DjService {
             denySong(sender, "There was an error while trying to add that song");
             songsAdded = 0;
         }
-        if(songsAdded == 1) {
-            try {
-                updateSongList();
-            } catch (Exception e) {
-                logger.error("Error while updating song list after requesting song id " + (nextRequestId -1), e);
-            }
-        }
+
         return songsAdded;
     }
     
@@ -916,7 +799,6 @@ public class DjService {
 
     @Nullable
     public synchronized SongEntry nextSong() {
-
         if(currentSong != null) {
             lastPlayedSongs.add(currentSong);
             songHistory.add(currentSong);
@@ -949,18 +831,12 @@ public class DjService {
 
         currentSong = song;
 
-        try {
-            updateSongList();
-            updateNowPlayingFile(currentSong);
-        } catch (IOException e) {
-            logger.error("Couldn't update playedSongs file", e);
-        }
-
+        updateSongList();
+        updateNowPlayingFile(currentSong);
+        
         return song;
     }
-
-
-
+    
     public SongEntry getCurrentSong() {
         return currentSong;
     }
