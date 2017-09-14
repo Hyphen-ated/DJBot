@@ -496,6 +496,7 @@ public class DjService {
         
         updateQueuesForLeavers();
         for(SongEntry song : fetched.songs) {
+            song.setBackup(true);
             songsAdded += addSongToQueue(sender, song);
         }
         
