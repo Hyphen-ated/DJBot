@@ -55,6 +55,7 @@ public class DjService {
 
     private YoutubeFetcher ytFetcher;
     private SoundcloudFetcher scFetcher;
+    private BandcampFetcher bcFetcher;
 
     public DjService(DjConfiguration newConf, DjIrcBot irc, SongQueueDAO dao) {
         this.conf = newConf;
@@ -64,6 +65,7 @@ public class DjService {
         this.dao = dao;
         this.ytFetcher = new YoutubeFetcher(conf);
         this.scFetcher = new SoundcloudFetcher();
+        this.bcFetcher = new BandcampFetcher();
 
         moveLegacySongsJsonToDb();
 
@@ -362,6 +364,17 @@ public class DjService {
             return scFetcher.fetchSongData(requestStr);
         }
         
+        if (requestStr.contains("bandcamp.com/track")) {
+            return bcFetcher.fetchSongData(requestStr);
+        }
+        
+        if (requestStr.contains("bandcamp.com/album")) {
+            if(!sender.equals(streamer)) {
+                return new FetchResult("Only the streamer can request albums");
+            }
+            return bcFetcher.fetchSongData(requestStr);
+        }
+        
         //couldn't figure out what else it could be, so it's a search.
         //searches only go to youtube for now.
         return ytFetcher.youtubeSearch(sender, requestStr, this);
@@ -476,8 +489,12 @@ public class DjService {
             }
             return;
         }
+        //we dont have to enforce the above policies when there's more than one song, because only the streamer can request lists
+        if(!sender.equals(streamer)) {
+            denySong(sender, "only the streamer can request playlists");
+        }
+        
         updateQueuesForLeavers();
-        //we dont have to enforce policy when there's more than one song, because only the streamer can request lists
         for(SongEntry song : fetched.songs) {
             songsAdded += addSongToQueue(sender, song);
         }
