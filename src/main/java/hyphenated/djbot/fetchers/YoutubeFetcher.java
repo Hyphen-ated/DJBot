@@ -237,7 +237,9 @@ public class YoutubeFetcher {
                 
                 FetchResult result = this.fetchSongData(videoId);
                 if(result.songs != null && result.songs.size() > 0) {
-                    songs.add(result.songs.get(0));
+                    SongEntry song = result.songs.get(0);
+                    song.setBackup(true);
+                    songs.add(song);
                 }
             }
             return new FetchResult(songs);

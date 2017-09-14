@@ -20,3 +20,4 @@ testingOptions.yaml
 
 queue.json
 unplayedSongs.json
+/songqueue.db
