@@ -10,6 +10,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -29,7 +30,7 @@ public class BandcampFetcher  {
     
     public FetchResult fetchSongData(String url) {
         try {
-            ArrayList<SongEntry> songs = new ArrayList<>();
+            List<SongEntry> songs = new ArrayList<>();
             HttpClient client = new HttpClient();
             GetMethod get = new GetMethod(url);
             int errcode = client.executeMethod(get);
@@ -60,7 +61,7 @@ public class BandcampFetcher  {
             while (m.find()) {
                 String title = m.group(1);
                 if(title == null) {
-                    return new FetchResult("couldn't parse bandcamp's song title correctly");
+                    return new FetchResult("I couldn't parse bandcamp's song title correctly");
                 }
                 if(bandName != null) {
                     title = bandName + " - " + title;
@@ -74,24 +75,42 @@ public class BandcampFetcher  {
                 return new FetchResult("I couldn't find the song on that page");
             }
                         
+            int mp3idx;
             m = mp3Pattern.matcher(relevantData);
-            for (int i = 0; i < songs.size(); ++i) {
+            for (mp3idx = 0; mp3idx < songs.size(); ++mp3idx) {
                 if(!m.find()) {
-                    return new FetchResult("couldn't understand that bandcamp page");
+                    //we found fewer mp3 links than we did "title" links. this is maybe okay, sometimes there are
+                    //other things present with a title after the songs.
+                    break;
                 }
-                songs.get(i).setVideoId(m.group(1));
+                if(mp3idx + 1 > songs.size()) {
+                    logger.warn("We found more mp3 links than 'title' links on this bandcamp page. aborting.");
+                    return new FetchResult("I couldn't understand that bandcamp page");
+                }
+                songs.get(mp3idx).setVideoId(m.group(1));
+                
             }
+            //let's just cross our fingers and hope that the earlier titles we found are actually songs, and the
+            //later ones are non-song objects to ignore.
+            songs = songs.subList(0, mp3idx);
             
+            int durationIdx;
             m = durationPattern.matcher(relevantData);
-            for (int i = 0; i < songs.size(); ++i) {
+            for (durationIdx = 0; durationIdx < songs.size(); ++durationIdx) {
                 if(!m.find()) {
-                    return new FetchResult("couldn't understand that bandcamp page");
+                    logger.warn("We found fewer durations than mp3 links on this bandcamp page. aborting.");
+                    return new FetchResult("I couldn't understand that bandcamp page");
                 }
                 try {
+                    if(durationIdx + 1 > songs.size()) {
+                        //we found more durations than mp3 links. well, let's ignore the extras and hope that the
+                        //first ones we found were the song ones.
+                        break;
+                    }
                     int duration = Integer.parseInt(m.group(1));
-                    songs.get(i).setDurationSeconds(duration);
+                    songs.get(durationIdx).setDurationSeconds(duration);
                 } catch (NumberFormatException e) {
-                    return new FetchResult("couldn't figure out the length of that song");
+                    return new FetchResult("I couldn't figure out the length of that song");
                 }
             }
             
