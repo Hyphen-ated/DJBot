@@ -353,7 +353,7 @@ public class DjService {
         int listPathIndex = requestStr.lastIndexOf(listPathVar);
         if(listPathIndex > -1) {
             if(!sender.equals(streamer)) {
-                return new FetchResult("Only the streamer can request lists");
+                return new FetchResult("only the streamer can request lists");
             }
             possibleId = requestStr.substring(listPathIndex + listPathVar.length());
             return ytFetcher.fetchSongListData(possibleId);
@@ -370,9 +370,13 @@ public class DjService {
         
         if (requestStr.contains("bandcamp.com/album")) {
             if(!sender.equals(streamer)) {
-                return new FetchResult("Only the streamer can request albums");
+                return new FetchResult("only the streamer can request albums");
             }
             return bcFetcher.fetchSongData(requestStr);
+        }
+        
+        if(requestStr.contains("http://") || requestStr.contains("https://")) {
+            return new FetchResult("that looks like a link to a website I don't know how to use");
         }
         
         //couldn't figure out what else it could be, so it's a search.
