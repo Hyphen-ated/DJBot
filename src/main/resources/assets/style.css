@@ -74,3 +74,7 @@
     border-radius:5px 5px 5px 5px;
     padding:3px;
 }
+
+#playPauseButton {
+    width: 80px;
+}

@@ -180,6 +180,12 @@ function playpause() {
 	    }    
 	}
 	paused = !paused;
+	
+	if(paused) {
+	    $("#playPauseButton").text('Play').button("refresh");
+	} else {
+	    $("#playPauseButton").text('Pause').button("refresh");
+	}
 }
 
 function applyVolumeChange(vol) {

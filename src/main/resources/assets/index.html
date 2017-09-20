@@ -3,46 +3,47 @@
 <head><title>DJbot interface</title></head>
 <link rel="stylesheet" href="/djbot/ui/style.css" type="text/css"/>
 
-
-<div id="everything">
-
-    <div id="userStuff">
-        <button id="login" onclick="login()">Log in</button>
-        <div id="user">not logged in</div>
-    </div>
-    <!-- the youtube api does really abusive things to the html. these id names don't make sense when you read the html source,
-     but they do make sense after it gets distorted bizzarely.-->
-    <div id="playerstuff">
-        <div id="players">
-            <div id="youtubeHolder">
-                <div id="youtubePlayer" />
+<body>
+    <div id="everything">
+    
+        <div id="userStuff">
+            <button id="login" onclick="login()">Log in</button>
+            <div id="user">not logged in</div>
+        </div>
+        <!-- the youtube api does really abusive things to the html. these id names don't make sense when you read the html source,
+         but they do make sense after it gets distorted bizzarely.-->
+        <div id="playerstuff">
+            <div id="players">
+                <div id="youtubeHolder">
+                    <div id="youtubePlayer" />
+                </div>
+            </div>
+            <br>
+            <div id="soundcloudPlayer">
+                <iframe id="sc-widget" onload="setupSoundcloudWidget()" width="580" src="https://w.soundcloud.com/player/?url=https%3A%2F%2Fsoundcloud.com%2Fuser-394695858%2Fdjbot-soundcloud-placeholder"></iframe>
+            </div>
+            <br>
+            <div id="bandcampPlayer">
+                <!--<div id="bandcampHolder">-->
+                    <audio id="bandcampAudio" controls="controls" src="//popplers5.bandcamp.com/download/track?enc=mp3-128&fsig=eb4bc07d1e847ee35b04fcc663f506ae&id=25601426&stream=1&ts=1505394598.0"></audio>
+                <!--</div>-->
             </div>
         </div>
-        <br>
-        <div id="soundcloudPlayer">
-            <iframe id="sc-widget" onload="setupSoundcloudWidget()" width="580" src="https://w.soundcloud.com/player/?url=https%3A%2F%2Fsoundcloud.com%2Fuser-394695858%2Fdjbot-soundcloud-placeholder"></iframe>
+        
+        <div id="buttons">
+            <button id="playPauseButton" onclick="playpause()">Pause</button>
+            <button id="nextButton" onclick="nextSong(true)">Next</button>
+            <button id="volUpButton" onclick="changevol(10)">+vol</button>
+            <button id="volDownButton" onclick="changevol(-10)">-vol</button>
+            <button id="likeButton" onclick="like()">Like</button>
+            <span id="likeArea">✔</span>
+            <span id="volumeCheckbox" ><input id="trackVolume" type="checkbox" name="trackVolume" checked>let the bot change my volume</input></span>
         </div>
-        <br>
-        <div id="bandcampPlayer">
-            <!--<div id="bandcampHolder">-->
-                <audio id="bandcampAudio" controls="controls" src="//popplers5.bandcamp.com/download/track?enc=mp3-128&fsig=eb4bc07d1e847ee35b04fcc663f506ae&id=25601426&stream=1&ts=1505394598.0"></audio>
-            <!--</div>-->
-        </div>
-    </div>
+        <div id="title"></div>
+        <div id="requester"></div>
     
-    <div id="buttons">
-        <button onclick="playpause()">Play/pause</button>
-        <button id="nextButton" onclick="nextSong(true)">Next</button>
-        <button id="volUpButton" onclick="changevol(10)">+vol</button>
-        <button id="volDownButton" onclick="changevol(-10)">-vol</button>
-        <button id="likeButton" onclick="like()">Like</button>
-        <span id="likeArea">✔</span>
-        <span id="volumeCheckbox" ><input id="trackVolume" type="checkbox" name="trackVolume" checked>let the bot change my volume</input></span>
     </div>
-    <div id="title"></div>
-    <div id="requester"></div>
-
-</div>
+</body>
 <script src="https://w.soundcloud.com/player/api.js" type="text/javascript"></script>
 <script type='text/javascript' src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.0/jquery.min.js"></script>
 
