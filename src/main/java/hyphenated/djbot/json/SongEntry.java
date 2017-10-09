@@ -132,12 +132,12 @@ public class SongEntry {
 
 
     public String buildSongUrl() {
-        if (site == SiteIds.SOUNDCLOUD)
+        if (SiteIds.SOUNDCLOUD.equals(site))
             return "https://soundcloud.com" + videoId;
-        else if (site == SiteIds.YOUTUBE)
+        else if (SiteIds.YOUTUBE.equals(site))
             return "http://www.youtube.com/watch?v=" + videoId;
-        else 
-            return "";
+        
+        return "";
     }
 
     public String buildDurationStr() {
