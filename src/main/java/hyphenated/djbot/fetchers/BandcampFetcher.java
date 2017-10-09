@@ -5,9 +5,13 @@ import hyphenated.djbot.json.SongEntry;
 import org.apache.commons.httpclient.HttpClient;
 import org.apache.commons.httpclient.methods.GetMethod;
 import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.mozilla.javascript.Parser;
+import org.mozilla.javascript.ast.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -17,16 +21,9 @@ import java.util.regex.Pattern;
 //based on rakxer's proof of concept, thanks rakxer!
 public class BandcampFetcher  {
     public Logger logger = LoggerFactory.getLogger("hyphenated.djbot");
-    
-    private Pattern relevantDataPattern = Pattern.compile("var SiteData(.+?)var CurrencyData", Pattern.DOTALL);
-         
-    //keyword in quotes, optional whitespace around a colon, then any text between the first quote and a second quote that is not preceded by a backslash
-    private Pattern titlePattern = Pattern.compile("\"title\"\\s*:\\s*\"(.+?)(?<!\\\\)\"");
-    private Pattern mp3Pattern = Pattern.compile("\"mp3-128\"\\s*:\\s*\"//([^\"]*)\"");
-    private Pattern durationPattern = Pattern.compile("\"duration\"\\s*:\\s*(\\d+)");
 
-    //start of BandData object, then characters that dont close the object, then the name field
-    private Pattern bandNamePattern = Pattern.compile("var BandData[^}]*name:\\s*\"(.+?)(?<!\\\\)\"");
+    //used to get the contents of script tags in the html page, which we will then parse using the "rhino" library
+    private Pattern scriptPattern = Pattern.compile("<script.*?>(.*?)</script>", Pattern.DOTALL);
     
     public FetchResult fetchSongData(String url) {
         try {
@@ -35,89 +32,202 @@ public class BandcampFetcher  {
             GetMethod get = new GetMethod(url);
             int errcode = client.executeMethod(get);
             if (errcode != 200) {
-                return new FetchResult("I couldn't get info about that from bandcamp");
+                return new FetchResult("I couldn't even load that bandcamp page");
             }
     
             String html = IOUtils.toString(get.getResponseBodyAsStream(), "utf-8");
-            Matcher m = relevantDataPattern.matcher(html);
             
-            if (!m.find()) {
-                return new FetchResult("I couldn't understand bandcamp's song data");
+            Matcher m = scriptPattern.matcher(html);
+            String js = "";
+            while(m.find()) {
+                js = m.group(1);
+                //There are several script tags on the page. the one we care about is the one with this value in it.
+                //This could potentially give us the wrong script if this string appears as data somewhere, but
+                //that's sufficiently unlikely that I'm going to not worry about it.
+                if (js.contains("var BandData = {")) {
+                    break;
+                }
             }
-            String relevantData = m.group(1); //reduces the size of the html string to speed up future regex
             
-            m = bandNamePattern.matcher(relevantData);
+            if (StringUtils.isBlank(js)) {
+                return new FetchResult("I couldn't find the song data in that page");
+            }
 
-            String bandName = null;
-            if(m.find()) {
-                bandName = m.group(1);
-            } else {
-                logger.warn("band name not found on bandcamp page " + url);
+            //take the js string, use rhino to parse it to an Abstract Syntax Tree
+            AstRoot root = new Parser().parse(js, "", 1);
+            
+            //here we walk the entire parsed javascript AST so we can reliably find the "trackinfo" element and band name
+            BandcampDataWalker finder = new BandcampDataWalker();
+            try {
+                root.visit(finder);
+            } catch (Exception e) {
+                logger.warn("Error while parsing bandcamp js", e);
+                return new FetchResult("I had an error while trying to understand that page");
             }
             
-            m = titlePattern.matcher(relevantData);
-            //must discard the first result because that's the "current" track, which doesn't have all info and the info that it does have is duped
-            m.find();
-            while (m.find()) {
-                String title = m.group(1);
-                if(title == null) {
-                    return new FetchResult("I couldn't parse bandcamp's song title correctly");
+            if (finder.trackinfo == null) {
+                return new FetchResult("I couldn't find the track info on that page");
+            }
+            List<AstNode> elems = finder.trackinfo.getElements();
+            String bandname = finder.bandname;
+            if(StringUtils.isBlank(bandname)) {
+                bandname = null; //this is okay, we'll just ignore the bandname if it's null
+            }
+            //now we have a list of trackinfo objects. each one represents a song.
+            for (AstNode node : elems) {
+                if(!(node instanceof ObjectLiteral)) {
+                    continue; 
                 }
-                if(bandName != null) {
-                    title = bandName + " - " + title;
+                ObjectLiteral literal = (ObjectLiteral) node;
+                //delve into that object to find the properties we need to know about a song
+                SongEntry song = getSongFromNode(literal, bandname);
+                if(song != null) {
+                    songs.add(song);
                 }
-                
-                SongEntry song = new SongEntry(title, "", -1, "", new Date().getTime(), -1, false, 0, SiteIds.BANDCAMP);
-                songs.add(song);
             }
             
             if(songs.size() == 0) {
-                return new FetchResult("I couldn't find the song on that page");
-            }
-                        
-            int mp3idx;
-            m = mp3Pattern.matcher(relevantData);
-            for (mp3idx = 0; mp3idx < songs.size(); ++mp3idx) {
-                if(!m.find()) {
-                    //we found fewer mp3 links than we did "title" links. this is maybe okay, sometimes there are
-                    //other things present with a title after the songs.
-                    break;
-                }
-                if(mp3idx + 1 > songs.size()) {
-                    logger.warn("We found more mp3 links than 'title' links on this bandcamp page. aborting.");
-                    return new FetchResult("I couldn't understand that bandcamp page");
-                }
-                songs.get(mp3idx).setVideoId(m.group(1));
-                
-            }
-            //let's just cross our fingers and hope that the earlier titles we found are actually songs, and the
-            //later ones are non-song objects to ignore.
-            songs = songs.subList(0, mp3idx);
-            
-            int durationIdx;
-            m = durationPattern.matcher(relevantData);
-            for (durationIdx = 0; durationIdx < songs.size(); ++durationIdx) {
-                if(!m.find()) {
-                    logger.warn("We found fewer durations than mp3 links on this bandcamp page. aborting.");
-                    return new FetchResult("I couldn't understand that bandcamp page");
-                }
-                try {
-                    if(durationIdx + 1 > songs.size()) {
-                        //we found more durations than mp3 links. well, let's ignore the extras and hope that the
-                        //first ones we found were the song ones.
-                        break;
-                    }
-                    int duration = Integer.parseInt(m.group(1));
-                    songs.get(durationIdx).setDurationSeconds(duration);
-                } catch (NumberFormatException e) {
-                    return new FetchResult("I couldn't figure out the length of that song");
-                }
+                return new FetchResult("I couldn't find any songs on that page");
             }
             
             return new FetchResult(songs);
+            
         } catch (Exception e) {
             logger.error("Error during bandcamp request", e);
             return new FetchResult("I had an error while trying to get that song");
         }
     }
+
+    
+    //given a javascript object literal (which normally contains 30+ key-values for various bandcamp metadata),
+    //we go in there to find the songname, the url to the mp3, and the duration.
+    //(we prepend the bandname onto the front of the songname)
+    //returns null if we can't find all the song info we expected to find
+    @Nullable
+    private SongEntry getSongFromNode(ObjectLiteral obj, String bandName) {
+        String songName = "";
+        String mp3Url = "";
+        int durationSeconds = 0;
+        
+        //step over all the properties, if we find one we care about, write it to the variables above. then we check
+        //afterwards that we got all the ones we need.
+        for(ObjectProperty prop :obj.getElements()) {
+            AstNode left = prop.getLeft();
+            AstNode right = prop.getRight();
+            if(!(left instanceof StringLiteral)) {
+                continue;
+            }
+            String propName = ((StringLiteral) left).getValue();
+            //we care about a few specific property names, so we ignore the rest
+            switch(propName) {
+                case "title":
+                    if(right instanceof StringLiteral) {
+                        songName = ((StringLiteral)right).getValue();
+                        if(bandName != null) {
+                            songName = bandName + " - " + songName;
+                        }
+                    }
+                    break;
+                case "duration":
+                    if(right instanceof NumberLiteral) {
+                        double dur = Double.parseDouble(((NumberLiteral)right).getValue());
+                        durationSeconds = (int) Math.ceil(dur);
+                    }
+                    break;
+                case "file":
+                    //the structure we're looking for here is:
+                    //file":{"mp3-128":"https://blah"}
+                    if(right instanceof ObjectLiteral) {
+                        List<ObjectProperty> list = ((ObjectLiteral)right).getElements();
+                        if(list.size() > 0) {
+                            ObjectProperty p = list.get(0);
+                            AstNode pLeft = p.getLeft();
+                            if(pLeft instanceof StringLiteral && ((StringLiteral)pLeft).getValue().equals("mp3-128")) {
+                                AstNode pRight = p.getRight();
+                                if(pRight instanceof StringLiteral) {
+                                    mp3Url = ((StringLiteral)pRight).getValue();
+                                    mp3Url = mp3Url.replaceFirst("^https://", "");
+                                    mp3Url = mp3Url.replaceFirst("^http://", "");
+
+                                }
+                            }
+                        }
+                    }
+                    break;
+                default:
+                    break;
+            }
+        }
+        if(StringUtils.isBlank(songName) || StringUtils.isBlank(mp3Url) || durationSeconds == 0) {
+            logger.warn("Couldn't get all the info for a song out of the bandcamp page");
+        } else {
+            return new SongEntry(songName, mp3Url, -1, "", new Date().getTime(), durationSeconds, false, 0, SiteIds.BANDCAMP);
+        }
+        return null;
+    }
+}
+
+//we pass this object to rhino. it visits every node in the js AST.
+//the goal is to retrieve the trackinfo array and the bandname.
+class BandcampDataWalker implements NodeVisitor {
+    //after the walking is done, the code that needs these values will grab them from here:
+    public ArrayLiteral trackinfo = null;
+    public String bandname = null;
+
+    public boolean visit(AstNode node) {
+        //We return as soon as we figure out that this particular node is not one we are looking for.
+        //We always return "true" because that means "yes, visit all the children of this node recursively".
+        //There's no way to call off the visiting after we've found our target nodes, so we are going to be visiting
+        //every single node in the AST regardless.
+        if(!(node instanceof ObjectProperty)) {
+            return true;
+        }
+        ObjectProperty prop = (ObjectProperty)node;
+        AstNode left = prop.getLeft();
+        if(!(left instanceof Name)) {
+            return true;
+        }
+        String name = ((Name)left).getIdentifier();
+
+        tryTrackInfo(prop, name);
+        tryArtist(prop, name);
+
+        return true;
+    }
+    
+    private void tryTrackInfo(ObjectProperty prop, String name) {
+        //we're looking for the "trackinfo: ..." property, so we can get that "..." rvalue
+        if ("trackinfo".equals(name)) {
+            if(prop.getRight() instanceof ArrayLiteral) {
+                trackinfo = (ArrayLiteral)(prop.getRight());
+            }
+        }
+    }
+    
+    private void tryArtist(ObjectProperty prop, String name) {
+        if("name".equals(name)) {
+            //we're looking for the "name" key that is inside of "BandData" in the right place.
+            //so here we move up the AST looking at this node's parents.
+            if(!(prop.getParent() instanceof ObjectLiteral)) {
+                return;
+            }
+            ObjectLiteral parent = (ObjectLiteral)(prop.getParent());
+            if(!(parent.getParent() instanceof VariableInitializer)) {
+                return;
+            }
+            VariableInitializer parentParent = (VariableInitializer)(parent.getParent());
+            if(!(parentParent.getTarget() instanceof Name)) {
+                return;
+            }
+            Name initializerName = (Name)(parentParent.getTarget());
+            if("BandData".equals(initializerName.getIdentifier())) {
+                AstNode right = prop.getRight();
+                if(right instanceof StringLiteral) {
+                    bandname = ((StringLiteral)right).getValue();
+                }
+            }
+        }
+    }
+    
+    
 }
