@@ -22,6 +22,7 @@ public class DjIrcBot extends PircBot {
     final String label_soundcloud = "!soundcloud";
     final String label_sc = "!sc";
     final String label_songlist = "!songlist";
+    final String label_sl = "!sl";
     final String label_removesong = "!removesong";
     final String label_skipsong = "!skipsong";
     final String label_volume = "!volume";
@@ -179,7 +180,7 @@ public class DjIrcBot extends PircBot {
         } else if (lowercaseMessage.startsWith(label_sc)) {
             logMessage(sender, message);
             dj.irc_soundcloud(sender, message.substring(label_sc.length()).trim());
-        } else if (lowercaseMessage.startsWith(label_songlist)) {
+        } else if (lowercaseMessage.startsWith(label_songlist) || lowercaseMessage.startsWith(label_sl)) {
             logMessage(sender, message);
             dj.irc_songlist(sender);
         } else if (lowercaseMessage.startsWith(label_removesong)) {
