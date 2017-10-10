@@ -436,15 +436,15 @@ public class DjService {
             return "the queue is full at " + conf.getQueueSize();
         }
 
-        if(idCountInMainList(song.getVideoId()) > 0) {
+        if(titleCountInMainList(song.getTitle()) > 0) {
             return "the song \"" + song.getTitle() + "\" is already in the queue";
         }
 
-        if(currentSong != null && song.getVideoId().equals(currentSong.getVideoId())) {
+        if(currentSong != null && song.getTitle().equals(currentSong.getTitle())) {
             return "the song \"" + song.getTitle() + "\" is currently playing";
         }
 
-        if(songIsProhibitedByRecentDaysPolicy(song.getVideoId(), song.getTitle())) {
+        if(songIsProhibitedByRecentDaysPolicy(song.getTitle())) {
             return "the song \"" + song.getTitle() + "\" has been played in the last " + conf.getRecencyDays() + " days";
         }
 
@@ -476,7 +476,7 @@ public class DjService {
                 return;
             }
 
-            if(moveToPrimaryIfSongInSecondary(song.getVideoId())) {
+            if(moveToPrimaryIfSongInSecondary(song.getTitle())) {
                 irc.message(sender + ": bumping \"" + song.getTitle() + "\" to main queue" );
                 return;
             }
@@ -744,9 +744,9 @@ public class DjService {
         }
     }
 
-    private boolean moveToPrimaryIfSongInSecondary(String id) {
+    private boolean moveToPrimaryIfSongInSecondary(String title) {
         for (SongEntry entry : secondarySongList) {
-            if (entry.getVideoId().equals(id)) {
+            if (entry.getTitle().equals(title)) {
                 songList.add(entry);
                 secondarySongList.remove(entry);
                 return true;
@@ -767,10 +767,10 @@ public class DjService {
         irc.message("Sorry " + sender + ", " + reason);
     }
 
-    private int idCountInMainList(String id) {
+    private int titleCountInMainList(String title) {
         int count = 0;
         for(SongEntry entry : songList) {
-            if(entry.getVideoId().equals(id)) {
+            if(entry.getTitle().equals(title)) {
                 ++count;
             }
         }
@@ -787,7 +787,7 @@ public class DjService {
         return count;
     }
 
-    private boolean songIsProhibitedByRecentDaysPolicy(String id, String title) {
+    private boolean songIsProhibitedByRecentDaysPolicy(String title) {
         int days = conf.getRecencyDays();
         if(days == 0) {
             //feature turned off
@@ -796,7 +796,7 @@ public class DjService {
 
         for(String recencyDayBypassTerm : conf.getRecencyDaysBypassTerms()) {
             if(title.toLowerCase().contains(recencyDayBypassTerm.toLowerCase())) {
-                logger.info("Song " + id + " (" + title + ") ignoring recencyDays policy because it includes bypass term '" + recencyDayBypassTerm + "'");
+                logger.info("Song \"" + title + "\" ignoring recencyDays policy because it includes bypass term '" + recencyDayBypassTerm + "'");
                 return false;
             }
         }
@@ -804,7 +804,7 @@ public class DjService {
         long recencyCutoff = DateTime.now().minusDays(conf.getRecencyDays()).toDate().getTime();
 
         for(SongEntry entry : songHistory) {
-            if(entry.getVideoId().equals(id) && entry.getRequestTime() > recencyCutoff ) {
+            if(entry.getTitle().equals(title) && entry.getRequestTime() > recencyCutoff) {
                 return true;
             }
         }
