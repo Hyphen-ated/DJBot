@@ -73,6 +73,8 @@ public class BandcampFetcher  {
             if(StringUtils.isBlank(bandname)) {
                 bandname = null; //this is okay, we'll just ignore the bandname if it's null
             }
+            
+            int skipCount = 0;
             //now we have a list of trackinfo objects. each one represents a song.
             for (AstNode node : elems) {
                 if(!(node instanceof ObjectLiteral)) {
@@ -83,6 +85,8 @@ public class BandcampFetcher  {
                 SongEntry song = getSongFromNode(literal, bandname);
                 if(song != null) {
                     songs.add(song);
+                } else {
+                    ++skipCount;
                 }
             }
             
@@ -90,7 +94,7 @@ public class BandcampFetcher  {
                 return new FetchResult("I couldn't find any songs on that page");
             }
             
-            return new FetchResult(songs);
+            return new FetchResult(songs, skipCount);
             
         } catch (Exception e) {
             logger.error("Error during bandcamp request", e);

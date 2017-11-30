@@ -503,8 +503,11 @@ public class DjService {
             song.setBackup(true);
             songsAdded += addSongToQueue(sender, song);
         }
-        
-        irc.message("Added " + songsAdded + " songs to secondary queue");
+        if(fetched.skippedSongs > 0) {
+            irc.message("Added " + songsAdded + " songs to secondary queue (skipped " + fetched.skippedSongs + ")");
+        } else {
+            irc.message("Added " + songsAdded + " songs to secondary queue");
+        }
         updateSongList();
     }
     

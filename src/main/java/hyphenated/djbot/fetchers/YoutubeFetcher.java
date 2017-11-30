@@ -230,6 +230,7 @@ public class YoutubeFetcher {
             JSONObject obj = new JSONObject(resp);
             JSONArray items = obj.getJSONArray("items");
             List<SongEntry> songs = new ArrayList<>(50);
+            int skipCount = 0;
             for(int i = 0; i < items.length(); ++i) {
                 JSONObject item = items.getJSONObject(i);
                 JSONObject contentDetails = item.getJSONObject("contentDetails");
@@ -240,9 +241,11 @@ public class YoutubeFetcher {
                     SongEntry song = result.songs.get(0);
                     song.setBackup(true);
                     songs.add(song);
+                } else {
+                    ++skipCount;
                 }
             }
-            return new FetchResult(songs);
+            return new FetchResult(songs, skipCount);
 
         } catch (Exception e) {
             logger.error("Problem with youtube playlist request \"" + listPathId + "\"", e);
