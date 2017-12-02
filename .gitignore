@@ -21,3 +21,7 @@ testingOptions.yaml
 queue.json
 unplayedSongs.json
 /songqueue.db
+/logs/
+/nowPlayingInfo.txt
+/queue.json.old
+/unplayedSongs.json.old
