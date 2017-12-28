@@ -187,6 +187,10 @@ public class DjService {
         return new DbxClientV2(config, conf.getDropboxAccessToken());
     }
 
+    public synchronized String getSonglist() {
+        return dropboxLink;
+    }
+    
     public synchronized void irc_songlist( String sender) {
         if(StringUtils.isEmpty(dropboxLink)) {
             irc.message("Sorry " + sender + ", songlist isn't set up");

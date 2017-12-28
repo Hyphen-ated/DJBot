@@ -218,5 +218,11 @@ public class DjResource {
 
     }
 
+    @GET
+    @Path("songlist")
+    @Produces("application/json")
+    public String webSonglist(@QueryParam("callback") String callback) throws Exception {
+        return wrapForJsonp(dj.getSonglist(), callback);
+    }
 
 }

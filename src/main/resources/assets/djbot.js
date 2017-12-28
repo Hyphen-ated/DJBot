@@ -336,6 +336,16 @@ function like() {
 
 }
 
+function openSonglist() {
+    $.ajax({
+        dataType: "json",
+        url: urlPrefix + "/djbot/songlist",
+        success: function(data) {
+           window.open(data); 
+        }
+    })
+}
+
 setupYoutubeAPI();
 bcPlayer.addEventListener("ended", function() {bandcampFinishedSong = true;})
 justStarted = true;
