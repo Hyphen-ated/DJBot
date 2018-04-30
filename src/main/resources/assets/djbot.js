@@ -106,7 +106,7 @@ function login() {
 
 function loadSong(songId, site, requestId, startSeconds) {
     if (site == 'yt') {
-        $("#soundcloudPlayer").hide();
+//        $("#soundcloudPlayer").hide();
         $("#bandcampPlayer").hide();
         $("#youtubeHolder").css("display", "table-cell");
         
@@ -139,7 +139,7 @@ function loadSong(songId, site, requestId, startSeconds) {
 		});
 	} else if (site == 'bc') {
 	    $("#youtubeHolder").hide();     
-	    $("#soundcloudPlayer").hide();
+//	    $("#soundcloudPlayer").hide();
         $("#bandcampPlayer").css("display", "table-cell");
         bcPlayer.src = "https://" + songId;
         bcPlayer.currentTime = 0;
