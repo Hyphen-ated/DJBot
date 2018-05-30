@@ -14,11 +14,15 @@ import io.dropwizard.jdbi.DBIFactory;
 import io.dropwizard.setup.Bootstrap;
 import io.dropwizard.setup.Environment;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.http.client.HttpClient;
+import org.jnativehook.GlobalScreen;
 import org.skife.jdbi.v2.DBI;
 
 import java.io.File;
 import java.io.PrintStream;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class DjApplication extends Application<DjConfiguration> {
 
@@ -100,5 +104,16 @@ public class DjApplication extends Application<DjConfiguration> {
         }
 
         environment.healthChecks().register("currentSong", channelCheck);
+        try {
+            GlobalScreen.registerNativeHook();
+            GlobalScreen.addNativeKeyListener(new KeyboardListener(configuration, resource));
+            // turn off the logging from jnativehook
+            Logger hooklogger = Logger.getLogger(GlobalScreen.class.getPackage().getName());
+            hooklogger.setLevel(Level.OFF);
+            hooklogger.setUseParentHandlers(false);
+            
+        } catch (Exception e) {
+            System.out.println("Couldn't register keyboard shortcut hooks. Proceeding anyway, but here's the exception:\n" + ExceptionUtils.getStackTrace(e));
+        }
     }
 }

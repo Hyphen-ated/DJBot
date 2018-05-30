@@ -211,13 +211,14 @@ public class DjService {
         boolean isMod = irc.isMod(sender);
 
         if (currentSong.getRequestId() == skipId && isMod) {
+            //only mods can skip the currently playing song. even the requester is not allowed to.
             nextSong();
         }
 
+        //mods or the requester can remove yet-to-be-started songs
         removeSongFromList(songList, skipId, sender, isMod);
         removeSongFromList(secondarySongList, skipId, sender, isMod);
-
-        dao.setSongToBePlayed(skipId, false);
+        
         updateSongList();
     }
 
@@ -229,6 +230,7 @@ public class DjService {
                 if(isMod || curEntry.getUser().equals(sender)) {
                     irc.message(sender + ": removed song \"" + curEntry.getTitle() + "\"");
                     entryIterator.remove();
+                    dao.setSongToBePlayed(skipId, false);
                 } else {
                     irc.message(sender + ": to remove others' songs you need to be mod");
                 }
@@ -740,12 +742,16 @@ public class DjService {
         return songsAdded;
     }
     
+    public void setVolume(int vol) {
+        if(vol >= 0 && vol <= 100) {
+            volume = vol;
+        }
+    }
+    
     public void setVolume(String trim) {
         try {
             int vol = Integer.parseInt(trim);
-            if(vol >= 0 && vol <= 100) {
-                volume = vol;
-            }
+            setVolume(vol);
         } catch (NumberFormatException e) {
             logger.error("Not a number: \"" + trim + "\"");
         }

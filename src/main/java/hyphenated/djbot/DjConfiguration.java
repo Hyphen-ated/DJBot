@@ -54,6 +54,11 @@ public class DjConfiguration extends Configuration {
 
     private String twitchChatServerAssignmentUrl;
     private String twitchIrcHost;
+    
+    private boolean keyboardTestMode;
+    private int skipSongKeyCode;
+    private int volumeUpKeyCode;
+    private int volumeDownKeyCode;
 
     @Valid
     @NotNull
@@ -310,5 +315,37 @@ public class DjConfiguration extends Configuration {
     @JsonProperty("database")
     public DataSourceFactory getDataSourceFactory() {
         return database;
+    }
+
+    public boolean isKeyboardTestMode() {
+        return keyboardTestMode;
+    }
+
+    public void setKeyboardTestMode(boolean keyboardTestMode) {
+        this.keyboardTestMode = keyboardTestMode;
+    }
+
+    public int getSkipSongKeyCode() {
+        return skipSongKeyCode;
+    }
+
+    public void setSkipSongKeyCode(int skipSongKeyCode) {
+        this.skipSongKeyCode = skipSongKeyCode;
+    }
+
+    public int getVolumeUpKeyCode() {
+        return volumeUpKeyCode;
+    }
+
+    public void setVolumeUpKeyCode(int volumeUpKeyCode) {
+        this.volumeUpKeyCode = volumeUpKeyCode;
+    }
+
+    public int getVolumeDownKeyCode() {
+        return volumeDownKeyCode;
+    }
+
+    public void setVolumeDownKeyCode(int volumeDownKeyCode) {
+        this.volumeDownKeyCode = volumeDownKeyCode;
     }
 }

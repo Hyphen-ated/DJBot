@@ -73,8 +73,22 @@ adminUsername: admin
 adminPassword: password
 # (at some point there may be a real user system with a database and everything, but for now it's just this one user)
 
+## Keyboard shortcuts stuff: ##
+# You can use global keyboard shortcuts to control volume and skipping songs, instead of using autohotkey with the web ui
+# This has the advantage that it won't have to steal focus to the dj ui. It has the disadvantage that it
+# won't work if your djbot is running on a streaming pc instead of your gaming pc.
+
+# Set this to "true" for the most reliable way to discover the key codes of the shortcut keys you want to use.
+# It will make the bot print the key code of every key that you press. (turn it off after you find the key codes you need) 
+keyboardTestMode: false
+# set key code values here that you discovered with the above mode. -1 disables a keyboard shortcut.
+# I use numpad 9, numpad 6, and numpad 3, which are 105, 102, and 99
+skipSongKeyCode: -1
+volumeUpKeyCode: -1
+volumeDownKeyCode: -1
+
 #############################################################
-# stuff you usually don't need to care about
+# stuff below here you usually shouldn't need to care about
 
 twitchChatServerAssignmentUrl: http://tmi.twitch.tv/servers?channel=%CHANNEL%
 
