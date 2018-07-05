@@ -86,6 +86,7 @@ keyboardTestMode: false
 skipSongKeyCode: -1
 volumeUpKeyCode: -1
 volumeDownKeyCode: -1
+likeSongKeyCode: -1
 
 #############################################################
 # stuff below here you usually shouldn't need to care about

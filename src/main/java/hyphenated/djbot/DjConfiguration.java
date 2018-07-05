@@ -59,6 +59,7 @@ public class DjConfiguration extends Configuration {
     private int skipSongKeyCode;
     private int volumeUpKeyCode;
     private int volumeDownKeyCode;
+    private int likeSongKeyCode;
 
     @Valid
     @NotNull
@@ -348,4 +349,14 @@ public class DjConfiguration extends Configuration {
     public void setVolumeDownKeyCode(int volumeDownKeyCode) {
         this.volumeDownKeyCode = volumeDownKeyCode;
     }
+
+    public int getLikeSongKeyCode() {
+        return likeSongKeyCode;
+    }
+
+    public void setLikeSongKeyCode(int likeSongKeyCode) {
+        this.likeSongKeyCode = likeSongKeyCode;
+    }
+    
+    
 }
