@@ -790,7 +790,7 @@ public class DjService {
         return count;
     }
 
-    private int senderCount(String sender) {
+    public int senderCount(String sender) {
         int count = 0;
         for(SongEntry entry : songList) {
             if(entry.getUser().equals(sender)) {

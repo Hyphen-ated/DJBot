@@ -73,6 +73,10 @@ public class YoutubeFetcher {
     
     public FetchResult youtubeSearch(String sender, String q, DjService dj) {
         try {
+            if(conf.getMaxSongsPerUser() > 0 && dj.senderCount(sender) >= conf.getMaxSongsPerUser()) {
+                return new FetchResult("you have " + conf.getMaxSongsPerUser() + " songs in the queue already");
+            }
+            
             String searchUrl = "https://www.googleapis.com/youtube/v3/search?videoEmbeddable=true&part=id&q=" + URLEncoder.encode(q, "UTF-8") + "&type=video&regionCode=" + conf.getUserCountryCode() + "&maxResults=5&key=" + conf.getYoutubeAccessToken();
             GetMethod get;
             HttpClient client = new HttpClient();
