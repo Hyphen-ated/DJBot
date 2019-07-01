@@ -182,9 +182,9 @@ function playpause() {
 	paused = !paused;
 	
 	if(paused) {
-	    $("#playPauseButton").text('Play').button("refresh");
+	    $("#playPauseButton").text('Play');
 	} else {
-	    $("#playPauseButton").text('Pause').button("refresh");
+	    $("#playPauseButton").text('Pause');
 	}
 }
 
@@ -228,7 +228,7 @@ function nextSong(skip) {
 
     player.seekTo(99999);
     soundcloudWidget.seekTo(600000);
-    bcPlayer.currentTime = bcPlayer.duration;
+    //bcPlayer.currentTime = bcPlayer.duration;
     
 
     if(skip) {
