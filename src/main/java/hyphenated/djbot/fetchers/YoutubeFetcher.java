@@ -126,7 +126,7 @@ public class YoutubeFetcher {
                     continue;
                 }
 
-                if (!("public".equals(status.getString("privacyStatus")))) {
+                if (!("public".equals(status.getString("privacyStatus")) || "unlisted".equals(status.getString("privacyStatus")))) {
                     continue;
                 }
 
