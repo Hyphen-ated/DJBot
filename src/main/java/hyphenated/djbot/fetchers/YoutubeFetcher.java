@@ -51,7 +51,7 @@ public class YoutubeFetcher {
                 return new FetchResult("that video can't be played in the streamer's country");
             }
 
-            if(!("public".equals(status.getString("privacyStatus")))) {
+            if(!("public".equals(status.getString("privacyStatus")) || "unlisted".equals(status.getString("privacyStatus")))) {
                 return new FetchResult("that video is private");
             }
 
