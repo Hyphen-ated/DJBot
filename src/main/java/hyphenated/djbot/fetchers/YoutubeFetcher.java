@@ -16,14 +16,15 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.URLEncoder;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
+import java.util.*;
 
 public class YoutubeFetcher {
     public Logger logger = LoggerFactory.getLogger("hyphenated.djbot");
     
     public DjConfiguration conf;
+    
+    private static final Set<String> acceptableVideoStatuses = new HashSet<String>(Arrays.asList("public", "unlisted"));
+    
     public YoutubeFetcher(DjConfiguration conf) {
         this.conf = conf;
     }
@@ -51,7 +52,7 @@ public class YoutubeFetcher {
                 return new FetchResult("that video can't be played in the streamer's country");
             }
 
-            if(!("public".equals(status.getString("privacyStatus")))) {
+            if(!(acceptableVideoStatuses.contains(status.getString("privacyStatus")))) {
                 return new FetchResult("that video is private");
             }
 
@@ -126,7 +127,7 @@ public class YoutubeFetcher {
                     continue;
                 }
 
-                if (!("public".equals(status.getString("privacyStatus")))) {
+                if (!(acceptableVideoStatuses.contains(status.getString("privacyStatus")))) {
                     continue;
                 }
 
