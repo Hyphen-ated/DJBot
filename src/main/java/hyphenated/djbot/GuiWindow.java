@@ -13,7 +13,7 @@ public class GuiWindow {
         JFrame frame = new JFrame("DJBot Server");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
-        JTextComponent textComponent = new JTextArea(40, 160);
+        JTextComponent textComponent = new JTextArea(40, 80);
         frame.add( new JScrollPane( textComponent ) );
         MessageConsole mc = new MessageConsole(textComponent);
         mc.redirectOut();
