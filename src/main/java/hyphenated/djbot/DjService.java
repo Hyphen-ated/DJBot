@@ -43,7 +43,7 @@ public class DjService {
     private volatile ArrayList<SongEntry> lastPlayedSongs = new ArrayList<>();
 
     //given a user, what is the ID of the last song they requested? this is used for !wrongsong
-    public volatile HashMap<String, Integer> lastRequestIdByUser = new HashMap<>();
+    private volatile HashMap<String, Integer> lastRequestIdByUser = new HashMap<>();
 
     private volatile int volume;
     private volatile int nextRequestId;
@@ -67,8 +67,15 @@ public class DjService {
         this.scFetcher = new SoundcloudFetcher();
         this.bcFetcher = new BandcampFetcher();
 
+        //create the scrollable console gui window
+        javax.swing.SwingUtilities.invokeLater(new Runnable() {
+            public void run() {
+                GuiWindow.createAndShowGUI(conf.getMaxConsoleLines());
+            }
+        });
+        
         moveLegacySongsJsonToDb();
-
+        
         long historyCutoff = DateTime.now().minusWeeks(2).toDate().getTime();
         songHistory = new ArrayList(dao.getSongsAfterDate(historyCutoff));
         secondarySongList = new ArrayList(dao.getSongsToPlay());
@@ -83,12 +90,10 @@ public class DjService {
         }
         this.blacklistedYoutubeIds = Collections.unmodifiableSet(blacklist);
 
-        //create the scrollable console gui window
-        javax.swing.SwingUtilities.invokeLater(new Runnable() {
-            public void run() {
-                GuiWindow.createAndShowGUI(conf.getMaxConsoleLines());
-            }
-        });
+
+        
+        
+
 
     }
 
@@ -895,10 +900,32 @@ public class DjService {
         irc.message("The streamer liked a song. " + likedSong.getUser() + "'s score increases to " + score);
     }
 
+
+    public void irc_songscore(String sender, String message) {
+        String pronoun = "their";
+
+        message = message.trim();
+        //the name to look up is whatever the first word is
+        int spaceIdx = message.indexOf(' ');
+        String targetName;
+        if (spaceIdx > -1) {
+            targetName = message.substring(0, spaceIdx);
+        } else {
+            targetName = message;
+        }
+        if (StringUtils.isBlank(targetName)) {
+            targetName = sender;
+            pronoun = "your";
+        }
+        int score = dao.getUserScore(targetName);
+        irc.message(sender + ": " + pronoun + " score is " + score);
+    }
+
     public synchronized DjState getStateRepresentation() {
         DjState state = new DjState(songList, secondarySongList, songHistory, currentSong, volume, nextRequestId, dropboxLink, irc.opUsernames);
         return state;
     }
+
 
 
 }

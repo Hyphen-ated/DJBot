@@ -34,6 +34,7 @@ public class DjIrcBot extends PircBot {
     final String label_wrongsong = "!wrongsong";
     final String label_songundo = "!songundo";
     final String label_songsearch = "!songsearch";
+    final String label_songscore = "!songscore";
 
 
     public volatile HashSet<String> opUsernames = new HashSet<>();
@@ -204,10 +205,6 @@ public class DjIrcBot extends PircBot {
         } else if (lowercaseMessage.startsWith(label_songsearch)) {
             logMessage(sender, message);
             dj.irc_songSearch(sender, message.substring(label_songsearch.length()).trim());
-            //"songs" has to be checked after "songsearch"
-        } else if (lowercaseMessage.startsWith(label_songs)) {
-            logMessage(sender, message);
-            dj.irc_songs(sender);
         } else if (lowercaseMessage.startsWith(label_songhelp)) {
             logMessage(sender, message);
             dj.irc_songs(sender);
@@ -217,6 +214,15 @@ public class DjIrcBot extends PircBot {
         } else if (lowercaseMessage.startsWith(label_songundo)) {
             logMessage(sender, message);
             dj.irc_wrongsong(sender);
+        } else if (lowercaseMessage.startsWith(label_songscore)) {
+            logMessage(sender, message);
+            dj.irc_songscore(sender, message.substring(label_songscore.length()).trim());
+        }
+         //Put new things just above here. Songs has to be checked LAST because "!songs" is a prefix of other commands!
+        
+         else if (lowercaseMessage.startsWith(label_songs)) {
+            logMessage(sender, message);
+            dj.irc_songs(sender);
         }
     }
 
