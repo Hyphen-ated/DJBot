@@ -249,6 +249,7 @@ function nextSong(skip) {
                     loadSong(newSong.videoId, newSong.site, newSong.requestId, newSong.startSeconds);
                     document.getElementById('title').innerHTML=newSong.title;
                     document.getElementById('requester').innerHTML=newSong.user;
+                    document.getElementById('queueLength').innerHTML=data.queueLengthSeconds/60 + " mins left";
                     itWorked = true;
                 }
 
@@ -264,9 +265,11 @@ function loadCurrentSong() {
         url: urlPrefix + '/djbot/current?callback=?',
         success: function(data) {
             if(data) {
-                loadSong(data.videoId, data.site, data.requestId, data.startSeconds);
-                document.getElementById('title').innerHTML=data.title;
-                document.getElementById('requester').innerHTML=data.user;
+                var song = data.song;
+                loadSong(song.videoId, song.site, song.requestId, song.startSeconds);
+                document.getElementById('title').innerHTML=song.title;
+                document.getElementById('requester').innerHTML=song.user;
+                document.getElementById('queueLength').innerHTML=data.queueLengthSeconds/60 + " mins left";;
                 justStarted = false;
                 waitingOnNext = false;
             }

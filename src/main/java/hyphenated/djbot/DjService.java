@@ -47,6 +47,7 @@ public class DjService {
 
     private volatile int volume;
     private volatile int nextRequestId;
+    private int queueLengthSeconds;
 
     //the following things should not change after initialization
     private final String streamer;
@@ -56,6 +57,7 @@ public class DjService {
     private YoutubeFetcher ytFetcher;
     private SoundcloudFetcher scFetcher;
     private BandcampFetcher bcFetcher;
+
 
     public DjService(DjConfiguration newConf, DjIrcBot irc, SongQueueDAO dao) {
         this.conf = newConf;
@@ -92,11 +94,8 @@ public class DjService {
         }
         this.blacklistedYoutubeIds = Collections.unmodifiableSet(blacklist);
 
-
-        
-        
-
-
+        //this updates queueLengthSeconds to show it in the ui
+        buildReportString();
     }
 
     //djbot used to use these two files to hold queue data. now it uses sqlite.
@@ -667,6 +666,7 @@ public class DjService {
         }
     }
 
+    // side effect: writes to queueLengthSeconds
     private String buildReportString() {
         StringBuilder sb = new StringBuilder();
         int runningSeconds = 0;
@@ -678,7 +678,7 @@ public class DjService {
             sb.append("\n");
         }
         sb.append("============\n");
-        if(songList.size() > 0) {
+        if(!songList.isEmpty()) {
             sb.append("Main list:\n============\n");
             for(SongEntry song : songList) {
                 appendSongReportEntry(sb, song);
@@ -687,7 +687,7 @@ public class DjService {
                 runningSeconds += song.getDurationSeconds();
             }
         }
-        if(secondarySongList.size() > 0) {
+        if(!secondarySongList.isEmpty()) {
             sb.append("\n\nSecondary list:\n============\n");
             for(SongEntry song : secondarySongList) {
                 appendSongReportEntry(sb, song);
@@ -697,8 +697,10 @@ public class DjService {
             }
         }
 
+        this.queueLengthSeconds = runningSeconds;
+
         runningSeconds = 0;
-        if(lastPlayedSongs.size() > 0) {
+        if(!lastPlayedSongs.isEmpty()) {
             sb.append("\n\nPreviously played songs:\n============\n");
             for(int i = lastPlayedSongs.size()-1; i >=0; --i) {
                 SongEntry song = lastPlayedSongs.get(i);
@@ -708,7 +710,6 @@ public class DjService {
                 runningSeconds += song.getDurationSeconds();
             }
         }
-
 
         return sb.toString();
     }
@@ -889,6 +890,10 @@ public class DjService {
 
     public int getVolume() {
         return volume;
+    }
+
+    public int getQueueLengthSeconds() {
+        return queueLengthSeconds;
     }
 
     public void likeSong() {

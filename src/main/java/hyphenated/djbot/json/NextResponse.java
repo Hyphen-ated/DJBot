@@ -3,14 +3,17 @@ package hyphenated.djbot.json;
 public class NextResponse {
     String status;
     SongEntry song;
+    int queueLengthSeconds;
 
-    public NextResponse(String status) {
+    public NextResponse(String status, int queueLengthSeconds) {
         this.status = status;
+        this.queueLengthSeconds = queueLengthSeconds;
     }
 
-    public NextResponse(String status, SongEntry song) {
+    public NextResponse(String status, SongEntry song, int queueLengthSeconds) {
         this.status = status;
         this.song = song;
+        this.queueLengthSeconds = queueLengthSeconds;
     }
 
     public String getStatus() {
@@ -27,5 +30,13 @@ public class NextResponse {
 
     public void setSong(SongEntry song) {
         this.song = song;
+    }
+
+    public int getQueueLengthSeconds() {
+        return queueLengthSeconds;
+    }
+
+    public void setQueueLengthSeconds(int queueLengthSeconds) {
+        this.queueLengthSeconds = queueLengthSeconds;
     }
 }

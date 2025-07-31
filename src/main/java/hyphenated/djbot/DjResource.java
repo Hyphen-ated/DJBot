@@ -3,11 +3,8 @@ package hyphenated.djbot;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import hyphenated.djbot.db.SongQueueDAO;
-import hyphenated.djbot.json.LoginInfo;
+import hyphenated.djbot.json.*;
 import hyphenated.djbot.auth.User;
-import hyphenated.djbot.json.CheckResponse;
-import hyphenated.djbot.json.NextResponse;
-import hyphenated.djbot.json.SongEntry;
 import io.dropwizard.auth.Auth;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -166,7 +163,7 @@ public class DjResource {
     @Produces("application/json")
     public String webCurrent(@QueryParam("callback") String callback) {
         dj.startCurrentSong();
-        return wrapForJsonp(dj.getCurrentSong(), callback);
+        return wrapForJsonp(new NextResponse("success", dj.getCurrentSong(), dj.getQueueLengthSeconds()), callback);
     }
 
     @GET
@@ -181,7 +178,7 @@ public class DjResource {
                     //we're trying to skip something that already ended or got skipped
                     dj.logger.info("Trying to skip id " + currentId + " but id " + dj.getCurrentSong().getRequestId() + " is currently playing, so 'next' fails");
 
-                    return wrapForJsonp(new NextResponse("failure"), callback);
+                    return wrapForJsonp(new NextResponse("failure", dj.getQueueLengthSeconds()), callback);
                 }
             }
             song = dj.nextSong();
@@ -190,11 +187,11 @@ public class DjResource {
 
         if(song == null) {
             dj.logger.debug("Bot returned a null next song, so 'next' fails");
-            return wrapForJsonp(new NextResponse("failure"), callback);
+            return wrapForJsonp(new NextResponse("failure", dj.getQueueLengthSeconds()), callback);
         }
 
         dj.logger.info("'next'ing to new song with id: " + song.getRequestId());
-        return wrapForJsonp(new NextResponse("success", song), callback);
+        return wrapForJsonp(new NextResponse("success", song, dj.getQueueLengthSeconds()), callback);
     }
 
     @GET
