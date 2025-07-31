@@ -20,6 +20,9 @@ import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -117,14 +120,14 @@ public class DjService {
                 "'. We're adding them to a database and then renaming the files to end in .old");
 
         try {
-            history = IOUtils.readLines(new FileInputStream(queueHistoryFilePath), "utf-8");
+            history = IOUtils.readLines(Files.newInputStream(Paths.get(queueHistoryFilePath)), "utf-8");
         } catch (IOException e) {
             throw new RuntimeException("Couldn't find file at " + queueHistoryFilePath, e);
         }
 
         String unplayedSongsStr = null;
         try {
-            unplayedSongsStr = IOUtils.toString(new FileInputStream(unplayedSongsFilePath), "utf-8");
+            unplayedSongsStr = IOUtils.toString(Files.newInputStream(Paths.get(unplayedSongsFilePath)), "utf-8");
         } catch (IOException e) {
             throw new RuntimeException("Couldn't find file at " + unplayedSongsFilePath, e);
         }
@@ -136,8 +139,7 @@ public class DjService {
         } catch (IOException e) {
             throw new RuntimeException("File at " + unplayedSongsFilePath + " probably has invalid format (it should be json with just an array of integers)", e);
         }
-        HashSet<Integer> unplayedSongs = new HashSet<>();
-        unplayedSongs.addAll(unplayedSongsList);
+        HashSet<Integer> unplayedSongs = new HashSet<>(unplayedSongsList);
 
         int lineNumber = 1;
         ArrayList<SongEntry> entries = new ArrayList<>();
@@ -173,7 +175,7 @@ public class DjService {
 
             ListSharedLinksResult result = share.listSharedLinksBuilder().withPath(dboxFilePath).start();
             List<SharedLinkMetadata> links = result.getLinks();
-            if(links.size() > 0) {
+            if(!links.isEmpty()) {
                 url = links.get(0).getUrl();
             } else {
                 SharedLinkSettings settings = new SharedLinkSettings(RequestedVisibility.PUBLIC, null, null);
@@ -303,7 +305,7 @@ public class DjService {
     }
 
     public synchronized void irc_lastsong(String sender) {
-        if(lastPlayedSongs.size() == 0) {
+        if(lastPlayedSongs.isEmpty()) {
             irc.message(sender + ": no song has finished playing yet");
             return;
         }
@@ -312,8 +314,8 @@ public class DjService {
 
     public synchronized void irc_nextsong(String sender) {
         SongEntry nextSong;
-        if(songList.size() == 0) {
-            if(secondarySongList.size() == 0) {
+        if(songList.isEmpty()) {
+            if(secondarySongList.isEmpty()) {
                 irc.message(sender + ": there is no next song");
                 return;
             }
@@ -472,7 +474,7 @@ public class DjService {
             denySong(sender, fetched.failureReason);
             return;
         }
-        if(fetched.songs.size() == 0) {
+        if(fetched.songs.isEmpty()) {
             denySong(sender, "something went wrong and I lost track of what song I was looking for");
             return;
         }
@@ -636,7 +638,7 @@ public class DjService {
         DbxClientV2 client = getDbxClient();
         try {
             String dboxContents = buildReportString();
-            byte[] contentBytes = dboxContents.getBytes("utf-8");
+            byte[] contentBytes = dboxContents.getBytes(StandardCharsets.UTF_8);
             client.files().uploadBuilder(dboxFilePath).withMode(WriteMode.OVERWRITE).uploadAndFinish(new ByteArrayInputStream(contentBytes));
         } catch (Exception e) {
             logger.error("Problem talking to dropbox to update the songlist", e);
@@ -778,7 +780,7 @@ public class DjService {
     }
 
     private float songLengthAllowedMinutes() {
-        if(songList.size() == 0) {
+        if(songList.isEmpty()) {
             return conf.getMaxSongLengthWhenQueueEmpty();
         } else {
             return conf.getMaxSongLength();
@@ -857,8 +859,8 @@ public class DjService {
         SongEntry song;
         String secondaryReport = "";
         //if the main queue is empty, pull from secondary
-        if(songList.size() == 0) {
-            if(secondarySongList.size() == 0) {
+        if(songList.isEmpty()) {
+            if(secondarySongList.isEmpty()) {
                 currentSong = null;
                 updateNowPlayingFile(currentSong);
                 return null;
@@ -930,8 +932,7 @@ public class DjService {
     }
 
     public synchronized DjState getStateRepresentation() {
-        DjState state = new DjState(songList, secondarySongList, songHistory, currentSong, volume, nextRequestId, dropboxLink, irc.opUsernames);
-        return state;
+        return new DjState(songList, secondarySongList, songHistory, currentSong, volume, nextRequestId, dropboxLink, irc.opUsernames);
     }
 
 
