@@ -34,6 +34,9 @@ maxSongLengthWhenQueueEmpty: 12.0
 # how long to wait before bumping someone's song to the secondary queue if they leave chat (0 to disable)
 secondaryQueueCountdownSeconds: 3600
 
+# whether to create our own console window (probably only useful on windows)
+createConsoleWindow: false
+
 # how many lines can the integrated console window show
 maxConsoleLines: 99999
 

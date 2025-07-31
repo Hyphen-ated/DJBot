@@ -67,12 +67,14 @@ public class DjService {
         this.scFetcher = new SoundcloudFetcher();
         this.bcFetcher = new BandcampFetcher();
 
-        //create the scrollable console gui window
-        javax.swing.SwingUtilities.invokeLater(new Runnable() {
-            public void run() {
-                GuiWindow.createAndShowGUI(conf.getMaxConsoleLines());
-            }
-        });
+        if (conf.getCreateConsoleWindow()) {
+            //create the scrollable console gui window
+            javax.swing.SwingUtilities.invokeLater(new Runnable() {
+                public void run() {
+                    GuiWindow.createAndShowGUI(conf.getMaxConsoleLines());
+                }
+            });
+        }
         
         moveLegacySongsJsonToDb();
         

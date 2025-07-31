@@ -35,6 +35,7 @@ public class DjConfiguration extends Configuration {
     private String dropboxAccessToken;
     private float maxSongLength;
     private float maxSongLengthWhenQueueEmpty;
+    private boolean createConsoleWindow;
     private int maxConsoleLines;
     @NotEmpty
     private String userCountryCode;
@@ -170,6 +171,14 @@ public class DjConfiguration extends Configuration {
 
     public void setMaxSongLengthWhenQueueEmpty(float maxSongLengthWhenQueueEmpty) {
         this.maxSongLengthWhenQueueEmpty = maxSongLengthWhenQueueEmpty;
+    }
+
+    public boolean getCreateConsoleWindow() {
+        return createConsoleWindow;
+    }
+
+    public void setCreateConsoleWindow(boolean createConsoleWindow) {
+        this.createConsoleWindow = createConsoleWindow;
     }
 
     public int getMaxConsoleLines() {
