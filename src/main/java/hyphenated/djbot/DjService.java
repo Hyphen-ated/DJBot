@@ -528,6 +528,7 @@ public class DjService {
         Integer songId = lastRequestIdByUser.get(sender);
         if(songId == null || songId == 0) {
             irc.message(sender + ": I don't have a most-recent request from you I can undo");
+            return;
         }
         this.removeSongFromList(songList, songId, sender, false);
         this.removeSongFromList(secondarySongList, songId, sender, false);
