@@ -39,14 +39,13 @@ function onYouTubeIframeAPIReady() {
 }
 
 function onYoutubeError(event) {
+    console.log("youtube error:");
+    console.log(event);
     if(event.data == 100 || event.data == 101 || event.data == 150) {
         //not found, or not allowed to be embedded. hopefully the dj server checked for this, but if not, we skip it now.
-        console.log("youtube error:");
-        console.log(event);
         nextSong(true);
     }
 }
-
 function setupSoundcloudWidget() {
 	//associates the iframe sc-widget with the SC Widget API
 	soundcloudWidget = SC.Widget('sc-widget');
