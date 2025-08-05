@@ -158,33 +158,42 @@ function loadSong(songId, site, requestId, startSeconds) {
 }
 
 
-function playpause() {
-	if (activePlayer === "yt") {
-		if(paused) {
-			player.playVideo();
-		} else {
-			player.pauseVideo();
-		}
-	} else if (activePlayer === "sc") {
-        if (paused) {
+function applyPause() {
+    if (activePlayer === "yt") {
+        if(!paused) {
+            player.playVideo();
+        } else {
+            player.pauseVideo();
+        }
+    } else if (activePlayer === "sc") {
+        if (!paused) {
             soundcloudWidget.play();
         } else {
             soundcloudWidget.pause();
         }
-	} else if (activePlayer === "bc") {
-	    if (paused) {
-	        bcPlayer.play();
-	    } else {
-	        bcPlayer.pause();
-	    }    
-	}
+    } else if (activePlayer === "bc") {
+        if (!paused) {
+            bcPlayer.play();
+        } else {
+            bcPlayer.pause();
+        }
+    }
+    if(paused) {
+        $("#playPauseButton").text('Play');
+    } else {
+        $("#playPauseButton").text('Pause');
+    }
+}
+
+function playpause() {
 	paused = !paused;
-	
-	if(paused) {
-	    $("#playPauseButton").text('Play');
-	} else {
-	    $("#playPauseButton").text('Pause');
-	}
+	applyPause();
+	$.ajax({
+        dataType: "json",
+        type: 'PUT',
+        url: urlPrefix + "/djbot/playpause?paused=" + paused,
+        success: function(data) {}
+    })
 }
 
 function applyVolumeChange(vol) {
@@ -198,8 +207,12 @@ function applyVolumeChange(vol) {
     var youtubeVol = Math.pow(Math.E, vol * 0.04605);
 
 	player.setVolume(youtubeVol);
-    soundcloudWidget.setVolume(youtubeVol);
-    bcPlayer.volume = youtubeVol / 100.0;
+	if (soundcloudWidget) {
+        soundcloudWidget.setVolume(youtubeVol);
+    }
+    if (bcPlayer) {
+        bcPlayer.volume = youtubeVol / 100.0;
+    }
 }
 
 function changevol(delta) {
@@ -306,7 +319,7 @@ function update() {
         console.log(err);
     }
 
-    //see if we need to change the volume or skip the current song
+    //see if we need to change the volume or skip the current song or pause
     $.ajax({
         dataType: 'json',
         url: urlPrefix + '/djbot/check?callback=?',
@@ -320,6 +333,9 @@ function update() {
                     player.pauseVideo();
                     waitingOnNext = true;
                     loadCurrentSong();
+                } else if (paused != data.paused) {
+                    paused = data.paused;
+                    applyPause();
                 }
             }
         }

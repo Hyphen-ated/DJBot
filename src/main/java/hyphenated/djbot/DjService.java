@@ -39,6 +39,7 @@ public class DjService {
     private final SongQueueDAO dao;
 
     private volatile SongEntry currentSong;
+    private volatile boolean paused = true;
     private volatile ArrayList<SongEntry> songList = new ArrayList<>();
     private volatile ArrayList<SongEntry> secondarySongList = new ArrayList<>();
     private volatile ArrayList<SongEntry> songHistory = new ArrayList<>();
@@ -880,12 +881,22 @@ public class DjService {
 
         updateSongList();
         updateNowPlayingFile(currentSong);
-        
+
+        paused = false;
+
         return song;
     }
     
     public SongEntry getCurrentSong() {
         return currentSong;
+    }
+
+    public boolean getPaused() {
+        return paused;
+    }
+
+    public void setPaused(boolean paused) {
+        this.paused = paused;
     }
 
     public String getStreamer() {
@@ -911,6 +922,9 @@ public class DjService {
         irc.message("The streamer liked a song. " + likedSong.getUser() + "'s score increases to " + score);
     }
 
+    public void playPause() {
+        paused = !paused;
+    }
 
     public void irc_songscore(String sender, String message) {
         String pronoun = "their";

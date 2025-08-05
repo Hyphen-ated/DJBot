@@ -9,6 +9,7 @@ public class KeyboardListener implements NativeKeyListener {
     int volumeUpKeyCode;
     int volumeDownKeyCode;
     int likeSongKeyCode;
+    int playPauseKeyCode;
     DjService dj;
     public KeyboardListener(DjConfiguration conf, DjResource djResource) {
         testMode = conf.isKeyboardTestMode();
@@ -16,6 +17,7 @@ public class KeyboardListener implements NativeKeyListener {
         volumeUpKeyCode = conf.getVolumeUpKeyCode();
         volumeDownKeyCode = conf.getVolumeDownKeyCode();
         likeSongKeyCode = conf.getLikeSongKeyCode();
+        playPauseKeyCode = conf.getPlayPauseKeyCode();
         dj = djResource.getDj();
     }
     
@@ -41,6 +43,8 @@ public class KeyboardListener implements NativeKeyListener {
             dj.nextSong();
         } else if(code == likeSongKeyCode) {
             dj.likeSong();
+        } else if(code == playPauseKeyCode) {
+            dj.playPause();
         }
 
     }

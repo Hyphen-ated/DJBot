@@ -134,7 +134,7 @@ public class DjResource {
     @Path("check")
     @Produces("application/json")
     public String webCheck(@QueryParam("callback") String callback) {
-        return wrapForJsonp(new CheckResponse(dj.getVolume(), dj.getCurrentSong()), callback);
+        return wrapForJsonp(new CheckResponse(dj.getVolume(), dj.getCurrentSong(), dj.getPaused()), callback);
     }
 
     @GET
@@ -220,6 +220,12 @@ public class DjResource {
     @Produces("application/json")
     public String webSonglist(@QueryParam("callback") String callback) throws Exception {
         return wrapForJsonp(dj.getSonglist(), callback);
+    }
+
+    @PUT
+    @Path("playpause")
+    public void playpause(@QueryParam("paused") boolean paused) throws Exception {
+        dj.setPaused(paused);
     }
 
 }
