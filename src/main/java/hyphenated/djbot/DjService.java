@@ -518,13 +518,14 @@ public class DjService {
             song.setBackup(true);
             songsAdded += addSongToQueue(sender, song);
         }
+        updateSongList(); // this updates queueLengthSeconds
         int queueLengthMinutes = this.queueLengthSeconds / 60;
         if(fetched.skippedSongs > 0) {
             irc.message("Added " + songsAdded + " songs to secondary queue (skipped " + fetched.skippedSongs + "). " + queueLengthMinutes + " mins total queue");
         } else {
             irc.message("Added " + songsAdded + " songs to secondary queue. " + queueLengthMinutes + " mins total queue");
         }
-        updateSongList();
+
     }
     
     //remove the last songs someone added
