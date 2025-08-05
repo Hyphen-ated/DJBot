@@ -882,8 +882,6 @@ public class DjService {
         updateSongList();
         updateNowPlayingFile(currentSong);
 
-        paused = false;
-
         return song;
     }
     
