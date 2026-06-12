@@ -179,7 +179,7 @@ public class DjService {
             if(!links.isEmpty()) {
                 url = links.get(0).getUrl();
             } else {
-                SharedLinkSettings settings = new SharedLinkSettings(RequestedVisibility.PUBLIC, null, null);
+                SharedLinkSettings settings = new SharedLinkSettings(null, null, null, null, null, RequestedVisibility.PUBLIC, null);
                 SharedLinkMetadata metadata = share.createSharedLinkWithSettings(dboxFilePath, settings);
                 url = metadata.getUrl();
             }
