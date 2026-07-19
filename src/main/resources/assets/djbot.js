@@ -33,7 +33,9 @@ function onYouTubeIframeAPIReady() {
         playerVars: {
             fs: 0,
             iv_load_policy: 3,
-            rel: 0
+            rel: 0,
+            disablekb: 1,
+            loop: 0
         }
     });
 }
@@ -239,9 +241,9 @@ function nextSong(skip) {
     waitingOnNext = true;
 
     player.seekTo(99999);
+    player.stopVideo();
     soundcloudWidget.seekTo(600000);
     //bcPlayer.currentTime = bcPlayer.duration;
-    
 
     if(skip) {
         var maybeSkipped = "skip=true&";
@@ -255,17 +257,16 @@ function nextSong(skip) {
         success: function(data) {
             doingNext = false;
             waitingOnNext = false;
-            var itWorked = false;
-            if( data && data.status === 'success') {
+            if( data && data.status === 'success' && data.song) {
                 var newSong = data.song;
                 if(newSong && newSong.requestId !== currentlyPlayingRequestId) {
                     loadSong(newSong.videoId, newSong.site, newSong.requestId, newSong.startSeconds);
                     document.getElementById('title').innerHTML=newSong.title;
                     document.getElementById('requester').innerHTML=newSong.user;
                     document.getElementById('queueLength').innerHTML=Math.round(data.queueLengthSeconds/60) + " mins left";
-                    itWorked = true;
                 }
-
+            } else {
+                setNoSongPlaying();
             }
         }
     })
@@ -277,19 +278,31 @@ function loadCurrentSong() {
         dataType: 'json',
         url: urlPrefix + '/djbot/current?callback=?',
         success: function(data) {
-            if(data) {
+            if(data && data.status === 'success' && data.song) {
                 var song = data.song;
                 loadSong(song.videoId, song.site, song.requestId, song.startSeconds);
                 document.getElementById('title').innerHTML=song.title;
                 document.getElementById('requester').innerHTML=song.user;
-                document.getElementById('queueLength').innerHTML=Math.round(data.queueLengthSeconds/60) + " mins left";;
+                document.getElementById('queueLength').innerHTML=Math.round(data.queueLengthSeconds/60) + " mins left";
                 justStarted = false;
                 waitingOnNext = false;
+            } else {
+                setNoSongPlaying()
             }
         }
     })
 }
 
+function setNoSongPlaying() {
+    document.getElementById('title').innerHTML="(no song playing)";
+    document.getElementById('requester').innerHTML="";
+    document.getElementById('queueLength').innerHTML="0 mins left";
+    $("#youtubeHolder").hide();
+    $("#bandcampPlayer").hide();
+    $("#soundcloudPlayer").hide();
+    player.pauseVideo();
+    bcPlayer.pause();
+}
 
 function update() {
     if(waitingOnNext) {
