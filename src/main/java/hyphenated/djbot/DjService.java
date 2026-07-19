@@ -740,7 +740,9 @@ public class DjService {
         ++nextRequestId;
         int songsAdded = 1;
         try {
-            if (newSong.isBackup()) {
+            if (currentSong == null) {
+                currentSong = newSong;
+            } else if (newSong.isBackup()) {
                 secondarySongList.add(newSong);
             } else {
                 songList.add(newSong);
