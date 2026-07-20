@@ -520,10 +520,20 @@ public class DjService {
         }
         updateSongList(); // this updates queueLengthSeconds
         int queueLengthMinutes = this.queueLengthSeconds / 60;
+
+        String maybeTitle = "";
+        if (fetched.playlistTitle != null) {
+            String title = fetched.playlistTitle;
+            int lengthLimit = 50;
+            if(title.length() > lengthLimit) {
+                title = title.substring(0, lengthLimit) + "...";
+            }
+            maybeTitle = "playlist \"" + title + "\" with ";
+        }
         if(fetched.skippedSongs > 0) {
-            irc.message("Added " + songsAdded + " songs to secondary queue (skipped " + fetched.skippedSongs + "). " + queueLengthMinutes + " mins total queue");
+            irc.message("Added " + maybeTitle + songsAdded + " songs to secondary queue (skipped " + fetched.skippedSongs + "). " + queueLengthMinutes + " mins total queue");
         } else {
-            irc.message("Added " + songsAdded + " songs to secondary queue. " + queueLengthMinutes + " mins total queue");
+            irc.message("Added " + maybeTitle + songsAdded + " songs to secondary queue. " + queueLengthMinutes + " mins total queue");
         }
 
     }

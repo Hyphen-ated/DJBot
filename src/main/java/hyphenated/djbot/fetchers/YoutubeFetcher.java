@@ -14,6 +14,7 @@ import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.util.*;
@@ -208,8 +209,44 @@ public class YoutubeFetcher {
         return true;
     }
 
+    // null if no title or not retrievable
+    @Nullable public String fetchPlaylistTitle(String listPathId) {
+        String playlistDetailUrl = " https://www.googleapis.com/youtube/v3/playlists?part=snippet&id=" + listPathId + "&key=" + conf.getYoutubeAccessToken() + "&fields=items%28snippet%28title%29%29";
+        GetMethod get = new GetMethod(playlistDetailUrl);
+        HttpClient client = new HttpClient();
+        try {
+            int errcode = client.executeMethod(get);
+            if(errcode != 200) {
+                logger.warn("Song request error: got code " + errcode + " from " + playlistDetailUrl);
+                return null;
+            }
+        } catch (IOException e) {
+            logger.warn("Couldn't get playlist title info from youtube api for " + listPathId, e);
+            return null;
+        }
+        try {
+            String resp = IOUtils.toString(get.getResponseBodyAsStream(), "utf-8");
+            if(resp == null) {
+                logger.warn("Couldn't get playlist title detail for " + listPathId);
+                return null;
+            }
+            JSONObject obj = new JSONObject(resp);
+            int x=0;
+            JSONArray arr = obj.getJSONArray("items");
+            JSONObject item = arr.getJSONObject(0);
+            JSONObject snippet = item.getJSONObject("snippet");
+            String title = snippet.getString("title");
+            return title;
+        } catch (Exception e) {
+            logger.warn("Problem with youtube playlist request for " + listPathId, e);
+            return null;
+        }
+
+    }
+
     //we can only get here through the streamer's request
     public FetchResult fetchSongListData(String listPathId) {
+        String playlistTitle = fetchPlaylistTitle(listPathId);
 
         String infoUrl = " https://www.googleapis.com/youtube/v3/playlistItems?part=contentDetails&playlistId=" + listPathId + "&key=" + conf.getYoutubeAccessToken() + "&maxResults=50";
 
@@ -250,7 +287,7 @@ public class YoutubeFetcher {
                     ++skipCount;
                 }
             }
-            return new FetchResult(songs, skipCount);
+            return new FetchResult(songs, playlistTitle, skipCount);
 
         } catch (Exception e) {
             logger.error("Problem with youtube playlist request \"" + listPathId + "\"", e);

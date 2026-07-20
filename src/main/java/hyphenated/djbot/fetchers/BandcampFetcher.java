@@ -94,7 +94,7 @@ public class BandcampFetcher  {
                 return new FetchResult("I couldn't find any songs on that page");
             }
             
-            return new FetchResult(songs, skipCount);
+            return new FetchResult(songs, null, skipCount);
             
         } catch (Exception e) {
             logger.error("Error during bandcamp request", e);
