@@ -114,8 +114,11 @@ function loadSong(songId, site, requestId, startSeconds) {
         player.loadVideoById({
             videoId: songId,
             startSeconds: startSeconds,
-            suggestedQuality: 'large'            
+            suggestedQuality: 'large'
         });
+        if (paused) {
+            player.pauseVideo();
+        }
 
 	} else if (site == 'sc') {
         $("#youtubeHolder").hide();        
@@ -153,7 +156,6 @@ function loadSong(songId, site, requestId, startSeconds) {
 	
     activePlayer = site;
 	currentlyPlayingRequestId = requestId;
-	paused = false;
 	soundcloudFinishedSong = false;
 	bandcampFinishedSong = false;
 	$("#likeArea").hide();
